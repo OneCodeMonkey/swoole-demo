@@ -3,7 +3,7 @@
 
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
-$filePath = realpath( 'data-json/data_100m.json');
+$filePath = realpath( 'data-json/data_3m.json');
 $fileContent = file_get_contents($filePath);
 $fileLength = strlen($fileContent);
 echo 'File size is : ' . $fileLength . " bytes. \n";
@@ -11,7 +11,7 @@ echo 'File size is : ' . $fileLength . " bytes. \n";
 $client->set(array(
     'package_eof' => "\r\n\r\n",    // 文件分割符
     'socket_buffer_size' => 1 * 1024 * 1024,    // buffer 大小
-    'package_max_length' => 300 * 1024 * 1024,  //协议最大长度
+    'package_max_length' => 4 * 1024 * 1024,  //协议最大长度
 ));
 
 // 获取当前时间戳微秒数

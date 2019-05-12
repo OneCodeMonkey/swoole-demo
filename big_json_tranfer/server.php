@@ -6,7 +6,7 @@ $server->set(array(
     'open_eof_check' => true,
     'package_eof' => "\r\n\r\n",
     'open_eof_split' => true,
-    'package_max_length' => 300 * 1024 * 1024,  //协议最大长度
+    'package_max_length' => 4 * 1024 * 1024,  //协议最大长度
 ));
 $server->on('connect', function ($server, $fd){
     echo "connected! : {$fd}\n";
