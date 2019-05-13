@@ -12,7 +12,7 @@ $server->on('connect', function ($server, $fd){
     echo "connected! : {$fd}\n";
 });
 $server->on('receive', function ($server, $fd, $reactor_id, $data) {
-    echo 'received : ' . $data;
+    echo 'received : ' . $data . "\n";
     $server->close($fd);
     file_put_contents('./received.json', $data);
 });
