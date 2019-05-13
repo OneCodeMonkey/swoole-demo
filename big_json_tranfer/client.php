@@ -4,9 +4,9 @@
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
 $filePath = realpath( 'data-json/data_3m.json');
-$fileContent = file_get_contents($filePath);
-$fileLength = strlen($fileContent);
-echo 'File size is : ' . $fileLength . " bytes. \n";
+$content = file_get_contents($filePath);
+$contentLength = strlen($content);
+echo 'File size is : ' . $contentLength . " bytes. \n";
 
 $client->set(array(
     'package_eof' => "\r\n\r\n",    // 文件分割符
@@ -28,8 +28,8 @@ $client->on('connect', function ($cli) {
     echo "connected! \n";
     global $start_time;
     $start_time = microtime_float();
-    global $fileContent;
-    $cli->send($fileContent."\r\n\r\n");
+    global $content;
+    $cli->send($content."\r\n\r\n");
 });
 $client->on('receive', function ($cli, $data) {
     echo "received: {$data}\n";
