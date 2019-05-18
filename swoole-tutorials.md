@@ -66,6 +66,50 @@ Swoole 在 2.0 开始内置协程（Coroutine）的能力，提供了具备协�
 
 #### 1.3.1 创建TCP服务器
 
+###### sample code
+
+```php
+// 创建Server对象，监听9501端口
+$serv = new swoole_server("127.0.0.1", 9501);
+// 监听连接进入的事件
+$serv->on('connect', function($serv, $fd) {
+    echo "Client: Connect.\n";
+});
+// 监听数据接收事件
+$serv->on('receive', function($serv, $fd, $from_id, $data) {
+    $serv->send($fd, "Server: " . $data);
+});
+// 监听连接关闭事件
+$serv->on('close', function($serv, $fd) {
+    echo "Client: Close.\n";
+});
+// 启动服务器
+$serv->start();
+```
+
+swoole_server 是一个异步服务器，通过监听事件的方式来实现功能。当对应的事件发生时，底层会主动回调指定的PHP函数。如果有新的 TCP 连接进入时会执行 onConnect 事件回调，当某个连接向服务器发送数据时，会回调 onReceive 函数。
+
+- 服务器可以同时被成千上万个客户端连接，$fd 就是客户端连接的唯一标识符
+- 调用`$server->send()` 方法向客户端连接发送数据，参数就是 $fd 客户端标识符
+- 调用 `$server->close()` 方法可以强制关闭某个客户端连接
+- 客户端可能会主动断开连接，此时触发 onClose 事件回调
+
+##### 执行sample
+
+```shell
+php server.php
+```
+
+在命令行下运行 server.php 文件，启动成功后可以使用 `netstat` 工具可以看到，已经在监听 9501 端口。这时就可以使用 telnet/netcat 工具连接服务器。
+
+```shell
+telent 127.0.0.1 9501
+hello
+Server： hello
+```
+
+
+
 #### 1.3.2 创建UDP服务器
 
 #### 1.3.3 创建Web服务器
