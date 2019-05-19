@@ -94,7 +94,7 @@ swoole_server 是一个异步服务器，通过监听事件的方式来实现功
 - 调用 `$server->close()` 方法可以强制关闭某个客户端连接
 - 客户端可能会主动断开连接，此时触发 onClose 事件回调
 
-##### 执行sample
+###### 执行sample
 
 ```shell
 php server.php
@@ -111,6 +111,41 @@ Server： hello
 
 
 #### 1.3.2 创建UDP服务器
+
+###### sample code
+
+```php
+// udp_server.php
+//创建Server 对象，监听 127.0.0.1：9502 端口，类型为SWOOLE_SOCK_UDP
+$serv = new swoole_server("127.0.0.1", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+//监听数据接收事件
+$serv->on('Packet', function($serv, $data, $clientInfo) {
+    $serv->sendto($clientInfo['address'], $clientInfo['port'], 'Server ' . $data);
+    var_dump($clientInfo);
+});
+// 启动服务器
+$serv->start();
+```
+
+UDP 是单向协议。启动Server后，客户端无需Connect, 直接可以向 Server监听的端口发送数据包，对应事件为 onPacket。
+
+- clientInfo 是客户端相关信息数组，又客户端的IP和端口等
+- 调用$server->sendto 方法向客户端发送数据
+
+###### 启动服务
+
+```shell
+php udp_server.php
+```
+
+UDP服务器可以使用 `netcat -u` 来连接测试
+
+```shell
+netcat -u 127.0.0.1 9502
+hello
+Server: hello
+
+```
 
 #### 1.3.3 创建Web服务器
 
