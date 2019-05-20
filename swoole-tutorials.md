@@ -581,6 +581,53 @@ $server->on('connect', function($server, $fd) {
 
 #### 1.3.12 使用协程客户端
 
+在swoole 的 4.x 版本中，协程取代了异步回调，作为我们推荐使用的编程方式。
+
+协程解决了异步回调编程困难的情况。使用协程可以以传统同步编程的方式来些代码，而底层又能自动切换为异步IO。
+
+协程往往用来提供系统设计的并发能力。
+
+> 使用swoole 版本 4.2.5+
+
+###### sample code
+
+```php
+$http = new swoole_http_server('0.0.0.0', 9501);
+$http->on('request', function ($request, $response) {
+    $db = new Swoole\Coroutine\MySQL();
+    $db->connect([
+        'host' => '127.0.0.1',
+        'port' => 3306,
+        'user' => 'user',
+        'password' => 'pass',
+        'database' => 'test',
+    ]);
+    $data = $db->query('select * from test_table');
+    $response->end(json_encode($data));
+});
+$http->start();
+```
+
+上面的代码编写与同步阻塞模式程序完全一致，但是底层自动进行了协程切换处理，变为异步 IO, 因此服务器可以用来处理大量并发，每一个请求都会创建一个新的协程，执行对应的代码。
+
+如果某个请求处理较慢，会引起这个请求被挂起，不影响其他请求的处理。
+
+###### 其他协程组件
+
+`swoole4` 扩展提供了丰富的协程组件，如 `Redis`,`TCP/UDP/Unix` 客户端，`Http/WebSocket/Http2` 客户端，使用这些组件可以方便地实现高性能的并发编程。
+
+使用协程时参见
+
+[协程编程须知]: https://wiki.swoole.com/wiki/page/851.html
+
+###### 使用场景
+
+适合用协程的场景有
+
+- 高并发服务，如秒杀系统，高性能API接口，RPC 服务器。 使用协程可以让服务器容错率大大提高，某些接口出现故障时也不会导致整个服务瘫痪掉
+- 爬虫。可以实现强大的并发能力，即使是慢速的网络环境，也可以高效利用带宽
+- 即时通讯。如`IM` 聊天，游戏服务器，消息服务器等。可以确保消息通信完全无阻塞，每个消息包均可即使地被处理。
+
 #### 1.3.13 协程：并发 shell_exec
 
 #### 1.3.14 协程：Go + Chan + Defer
