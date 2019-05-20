@@ -275,6 +275,39 @@ swoole_timer_after(3000, function() {
 
 #### 1.3.6 执行异步任务
 
+在server里如果需要执行耗时很长的动作，比如要给聊天服务器此时需要发送广播，web服务器中发送邮件等等。如果直接去执行这些操作就会阻塞当前进程，导致服务器响应严重被拖慢。
+
+swoole可以执行异步任务处理，投递一个异步任务到 TaskWorker 进程池中去执行，同时不影响当前请求的执行。
+
+###### sample code
+
+```php
+// 基于第一个TCP服务器，只需要增加 onTask 和 onFinish 两个事件回调即可。另外需要设置task进程数，可以根据任务的耗时和任务量配置适当的 task进程。
+$serv = new swoole_server('127.0.0.1', 9501);
+// 设置异步任务的工作进程数量
+$serv->set(['task_worker_num' => 4]);
+$serv->on('receive', function($serv, $fd, $from_id, $data) {
+    // 投递异步任务
+    $task_id = $serv->task($data);
+    echo "Dispath AsyncTask: id=$task_id\n";
+});
+// 处理异步任务
+$serv->on('task', function($serv, $task_id, $from_id, $data) {
+    echo "New AsyncTask[id=$task_id]" . PHP_EOL;
+    // 返回任务执行的结果
+    $serv->finish("$data->OK");
+});
+// 处理异步任务的结果
+$serv->on('finish', function($serv, $task_id, $data) {
+    echo "AsyncTask[$task_id] Finish: $data" . PHP_EOL;
+});
+$serv->start();
+```
+
+调用 $serv->task() 后，程序立即返回，继续向下执行代码。onTask 回调函数 Task 进程池内被异步执行。执行完成之后调用 $serv->finish() 返回结果。
+
+> finish 操作非必填
+
 #### 1.3.7 创建同步TCP服务器
 
 #### 1.3.8 创建异步TCP服务器
