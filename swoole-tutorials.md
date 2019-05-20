@@ -185,6 +185,70 @@ $http->on('request', function($request, $response){
 
 #### 1.3.4 创建WebSocket服务器
 
+###### sample code
+
+```php
+// ws_server.php
+// 创建websocket服务器对象，监听0.0.0.0：9502
+$ws = new swoole_websocket_server('0.0.0.0', 9502);
+// 监听WebSocket连接打开事件
+$ws->on('open', function($ws, $request) {
+    var_dump($request->fd, $request->get, $request->server);
+    $ws->push($request->fd, "hello, welcome\n");
+});
+// 监听websocket消息事件
+$ws->on('message', function($ws, $frame){
+    echo "Message:{$frame->data}\n";
+    $ws->push($frame->fd, "server:{$frame->data}");
+});
+// 监听websocket连接关闭事件
+$ws->on('close', function($ws, $fd){
+    echo "client-{$fd} is closed\n";
+});
+$ws->start();
+```
+
+websocket 服务器是建立在Http服务器之上的长连接服务器，客户端首先会发送一个Http请求与服务器握手。握手成功以后触发 onOpen事件表示连接就续，onOpen函数中包含$request对象，包含握手的详细信息，如 GET/POST参数，cookie，header等。
+
+建立连接后客户端与服务器即可双向通信
+
+- 客户端向服务器端发送信息时，服务器端触发 onMessage 事件回调
+- 服务器端可以调用 $server->push() 向某个客户端（$fd 标识符）发送消息
+- 服务端可设置 onHandShake 事件回调来手动处理 websocket 握手。
+- swoole_http_server 是 swoole_server 的子类，内置了 Http 的支持
+- swoole_websocket_server 是swoole_http_server 的子类，内置了 websocket 的支持运行程序
+
+运行 `php ws_server.php` 
+
+可以使用chrome浏览器测试，JS代码为：
+
+```php
+var wsServer = 'ws://127.0.0.1:9502';
+var websocket = new WebSocket(wsServer);
+websocket.onopen = function(e) {
+    console.log('connected to websocket server!');
+};
+websocket.onclose = function(e) {
+    console.log('disconnected.');
+};
+websocket.onmessage = function(e) {
+    console.log('retrived data from server: ' + e.data);
+};
+websocket.onerror = function(e, t) {
+    console.log('error occured: ' + e.data);
+};
+```
+
+- 无法用 swoole_client 与 websocket 的服务器通信，因为swoole_client 是TCP型
+
+- 必须实现 websocket协议才能和 websocket 服务器通信，可以使用 swoole/framework 提供的 
+
+  [PHP WebSocket客户端]: https://github.com/swoole/framework/blob/master/libs/Swoole/Client/WebSocket.php
+
+###### Comet
+
+WebSocket服务器除了提供 websocket 功能以外，实际上也可以处理 Http 长连接，只需要增加 onRequest 事件监听即可实现 Comet 方案 Http 长轮询。
+
 #### 1.3.5 设置定时器
 
 #### 1.3.6 执行异步任务
