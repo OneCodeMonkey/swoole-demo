@@ -251,6 +251,28 @@ WebSocket服务器除了提供 websocket 功能以外，实际上也可以处理
 
 #### 1.3.5 设置定时器
 
+swoole提供类似 JS 的 setInterval/setTimeout 异步定时器，粒度为毫秒级。
+
+###### sample code
+
+```php
+// 每隔2000ms触发一次
+swoole_timer_trick(2000, function($timer_id) {
+    echo "tick-2000ms\n";
+});
+// 3000ms以后执行函数
+swoole_timer_after(3000, function() {
+    echo "after 3000ms\n";
+});
+
+```
+
+- swoole_timer_tick = setInterval, 返回值 int，代表定时器ID
+- swoole_timer_after = setTimeout  返回值 int，代表定时器ID
+- swoole_timer_clear = clearInterval/clearTimeout, 参数为定时器ID
+
+
+
 #### 1.3.6 执行异步任务
 
 #### 1.3.7 创建同步TCP服务器
