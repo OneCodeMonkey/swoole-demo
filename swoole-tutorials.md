@@ -834,6 +834,94 @@ function testDefer() {
 
 #### 1.3.16 协程： 实现 sync.WaitGroup 功能
 
+在swoole4 中可以使用 `channel` 实现协程间通信，依赖管理，协程同步。基于 `channel` 可以轻松实现 `go` 的 `sync.WaitGroup`功能。
+
+###### sample code
+
+```php
+class WaitGroup
+{
+    private $count = 0;
+    private $chan;
+    
+    public function __construct()
+    {
+        $this->chan = new chan;
+    }
+    
+    // 增加计数
+    public function add()
+    {
+        $this->count++;
+    }
+    
+    // 任务完成
+    public function done()
+    {
+        $this->chan->push(true);
+    }
+    
+    // 等待所有任务完成，恢复当前协程的执行
+    public function wait()
+    {
+        while($this->count--) {
+            $this->chan->pop();
+        }
+    }
+}
+```
+
+- `WaitGroup` 对象可以复用，`add`, `done`, `wait` 之后可以再次使用
+
+###### sample code
+
+```php
+go(function () {
+    $wg = new WaitGroup();
+    $result = [];
+    $wg->add();
+    // 启动第一个协程
+    go(function () use ($wg, &$result) {
+        // 启动一个协程客户端client来请求淘宝网首页
+        $cli = new Client('www.taobao.com', 443, true);
+        $cli->setHeaders([
+            'Host' => 'www.taobao.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
+        	'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        	'Accept-Encoding' => 'gzip',
+        ]);
+        $cli->set(['timeout' => 1]);
+        $cli->get('/index.php');
+        $result['taobao'] = $cli->body;
+        $cli->close();
+        $wg->done();
+    });
+    $wg->add();
+    // 启动第二个协程
+    go(function () use ($wg, &$result) {
+        // 启动一个协程客户端client来请求百度首页
+        $cli = new Client('www.baidu.com', 443, true);
+        $cli->setHeaders([
+            'Host' => 'www.baidu.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
+        	'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        	'Accept-Encoding' => 'gzip',
+        ]);
+        $cli->set(['timeout' => 1]);
+        $cli->get('/index.php');
+        $result['taobao'] = $cli->body;
+        $cli->close();
+        $wg->done();
+    });
+    // 挂起当前协程，等待所有任务完成后恢复
+    $wg->wait();
+    // 此时$result 已经包含了2个任务执行结果
+    var_dump($result);
+})
+```
+
+
+
 ### 1.4 注意点
 
 #### 1.4.1 sleep/usleep 的影响
