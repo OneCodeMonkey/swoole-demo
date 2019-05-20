@@ -448,6 +448,73 @@ $server->set([
 
 #### 1.3.10 使用异步客户端
 
+php提供的 MySQL，CURL，Redis 等客户端是同步的，会导致服务器发生阻塞。
+
+swoole 提供了常用的异步客户端组件来解决此问题。在编写纯异步服务器程序时，可以使用这些异步客户端。
+
+异步客户端可以配合使用 SplQueue 实现连接池，以达到长连接复用的目的。在实际项目中可以使用 php 提供的 Yield/Generator 语法实现半协程的异步框架。也可以使用基于 Promises 来简化异步程序的编写。
+
+###### MySQL
+
+```php
+$db = new Swoole\MySQL;
+$server = [
+    'host' => '127.0.0.1',
+    'user' => 'test',
+    'password' => 'test',
+    'database' => 'test',
+];
+$db->connect($server, function($db, $result) {
+    $db->query('show tables', function(Swoole\MySQL $db, $result) {
+        var_dump($result);
+        $db->close();
+    });
+});
+```
+
+与 mysqli 和 PDO 等客户端不同，Swoole\MySQL 是异步非阻塞的，连接服务器，执行SQL 时，需要传入一个回调函数。connect 的结果不在返回值中，而是在回调函数中。query 的结果也需要在回调函数中处理。
+
+###### Redis
+
+```php
+$redis = new Swoole\Redis;
+$redis->connect('127.0.0.1', 6379, function ($redis, $result) {
+    $redis->set('test_key', 'value', function($redis, $result) {
+        $redis->get('test_key', function($redis, $result) {
+            var_dump($result);
+        });
+    });
+});
+```
+
+Swoole\Redis 需要 swoole编译安装 hiredis，详细文档参见 
+
+[异步Redis客户端]: https://wiki.swoole.com/wiki/page/p-redis.html
+
+###### Http
+
+```php
+$cli = new Swoole\Http\Client('127.0.0.1', 80);
+$cli->setHeaders(['User-Agent' => 'swoole-http-client']);
+$cli->setCookies(['test' => 'value']);
+
+$cli->post('/dump.php', ['test' => 'abc'], function($cli) {
+    var_dump($cli->body);
+    $cli->get('/index.php', function($cli) {
+        var_dump($cli->cookies);
+        var_dump($cli->headers);
+    });
+});
+```
+
+Swoole\Http\Client 的作用与CURL 完全一致，它完整地实现了 Http 客户端的相关功能。详细参见
+
+[HttpClient文档]: https://wiki.swoole.com/wiki/page/p-http_client.html
+
+###### 其他客户端
+
+swoole 底层目前只提供了最常用的 MySQL, Redis，Http 异步客户端，如果我们应用程序中需要实现其他协议客户端，比如Kafka，AMQP 等协议，可以基于Swoole\Client 异步TCP 客户端，开发相关协议解析代码自行实现。
+
 #### 1.3.11 多进程共享数据
 
 #### 1.3.12 使用协程客户端
