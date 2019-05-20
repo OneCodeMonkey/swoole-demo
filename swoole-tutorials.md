@@ -630,7 +630,161 @@ $http->start();
 
 #### 1.3.13 协程：并发 shell_exec
 
+在php程序中经常要用到 shell_exec 执行一些命令。而普通的 shell_exec 是阻塞的，如果命令执行的时间较长，那么很可能导致进程完全被卡住。在 swooel4 协程环境下可以用 `Co::exec` 并发地执行很多命令
+
 #### 1.3.14 协程：Go + Chan + Defer
+
+swoole4 为 php 提供了强大的 `CSP` 协程编程模式。底层提供了3个关键词，可以方便地实现各类功能。
+
+- swoole4 提供的 `php协程` 语法借鉴自 `go`
+- `php+swoole` 协程与 `go` 各有优势。`go` 是静态编译语言，性能好。php 动态脚本语言，开发速度快。
+
+> 下面测试速度所用的环境是 php7.2 + swoole4.2
+
+###### php关键词
+
+- `go` ：创建一个协程
+- `chan` ：创建一个通道
+- `defer` ：延迟任务。在协程退出时执行，先进后出
+
+这3个关键词底层表现方式均为***内存操作****，没有任何IO资源消耗，就像php 的数组一样是廉价的，只要有需要就可以直接使用。所以与 `socket`和`file` 操作不同，后者需要向操作系统申请接口和文件描述符，读写可能会产生阻塞的IO等待。
+
+##### 协程并发
+
+使用`go` 函数可以让一个函数并发地去执行，在编程过程中，如果某一段逻辑可以并发执行，就可以把它放到 `go` 协程中去执行。
+
+###### 顺序执行
+
+```php
+function a() {
+    sleep(1);
+    echo 'b'l
+}
+function b() {
+    sleep(2);
+    echo 'b';
+}
+a();
+b();
+```
+
+结果：
+
+```shell
+bchtf@LAPTOP-0K15EFQI:~$ time php co.php
+bc
+real    0m2.076s
+user    0m0.000s
+sys     0m0.078s
+```
+
+> 并发执行的任务，其总执行时间等于 max(t1, t2, t3, t4, ....)
+>
+> 顺序执行的任务，其总执行时间等于 t1 + t2 + t3 + t4
+
+##### 协程通信
+
+有了go 关键词之后，并发编程简单了很多。于此同时产生一个新问题。如果有2个协程并发执行，另外一个协程需要依赖这两个协程的执行结果，如何解决？
+
+办法是使用通道（`channel`），在swoole4 协程中使用 `new chan`来创建一个通道。通道我们可以理解为自带协议调度功能的队列。通道有两个接口 `push` ,`pop`:
+
+- `push` ：向通道中写入内容，如果已满，它会进入等待状态，有空间的时候才自动恢复
+- `pop` ：从通道中读内容，如果为空则进入等待状态，有数据时自动恢复
+
+使用通道可以方便地实现**并发管理**
+
+```php
+$chan = new chan(2);
+// 协程1
+go(function () use ($chan) {
+    $result = [];
+    for($i = 0; $i < 2; $i++) {
+        $result += $chan->pop();
+    }
+    var_dump($result);
+});
+// 协程2
+go(function () use ($chan) {
+    $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 80);
+    $cli->set(['timeout' => 10]);
+    $cli->setHeaders([
+        'Host' => 'www.qq.com',
+        'User-Agent' => 'Chrome/49.0.2587.3',
+        'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        'Accept-Encoding' => 'gzip',
+    ]);
+    $ret = $cli->get('/');
+    // $cli->body 响应内容过大，这里用Http状态码作为测试
+    $chan->push(['www.qq.com' => $cli->statusCode]);
+});
+// 协程3
+go(function () use ($chan) {
+    $cli = new Swoole\Coroutine\Http\Client('www.163.com', 80);
+    $cli->set(['timeout' => 10]);
+    $cli->setHeaders([
+        'Host' => 'www.163.com',
+        'User-Agent' => 'Chrome/49.0.2587.3',
+        'Accept' => 'text/html,application/xhtml+xml,application/xml',
+        'Accept-Encoding' => 'gzip',
+    ]);
+    $ret = $cli->get('/');
+    // $cli->body 响应内容过大，这里用Http状态码作为测试
+    $chan->push(['www.163.com' => $cli->statusCode]);
+});
+```
+
+执行结果：
+
+```shell
+htf@LAPTOP-0K15EFQI:~/swoole-src/examples/5.0$ time php co2.php
+array(2) {
+  ["www.qq.com"]=>
+  int(302)
+  ["www.163.com"]=>
+  int(200)
+}
+
+real    0m0.268s
+user    0m0.016s
+sys     0m0.109s
+htf@LAPTOP-0K15EFQI:~/swoole-src/examples/5.0$
+```
+
+- 协程1对管道进行两次 pop，刚开始时因为队列为空，所以进入等待状态
+- 协程2和协程3执行完成后，会push数据，协程1拿到两个的结果，而这个等待时间仅是 二者取最大的执行时间而已。不用串行等待了。
+
+##### 延迟任务
+
+在协程编程中，可能需要在协程退出时自动执行一些任务做清理工作。类似于php 的`register_shutdown_function` ，在 swoole4 中可以使用 `defer` 实现
+
+```php
+Swoole\Runtime::enableCoroutine();
+go(function () {
+    echo 'a';
+    defer(function () {
+        echo '~a';
+    });
+    echo 'b';
+    defer(function () {
+        echo '~b';
+    });
+    sleep(1);
+    echo 'c';
+});
+```
+
+###### 执行结果：
+
+```shell
+htf@LAPTOP-0K15EFQI:~/swoole-src/examples/5.0$ time php defer.php
+abc~b~a
+real    0m1.068s
+user    0m0.016s
+sys     0m0.047s
+htf@LAPTOP-0K15EFQI:~/swoole-src/examples/5.0$
+```
+
+
 
 #### 1.3.15 协程：实现 Go 语言风格的 defer
 
