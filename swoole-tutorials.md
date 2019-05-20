@@ -310,6 +310,48 @@ $serv->start();
 
 #### 1.3.7 创建同步TCP服务器
 
+###### sample code
+
+```php
+// client.php
+$client = new swoole_client(SWOOLE_SOCK_TCP);
+// 连接到服务器
+if(!$client->connect('127.0.0.1', 9501, 0.5))
+    die("connect failed.");
+// send
+if(!$client->send('hello world'))
+    die('send failed.');
+// receive
+$data = $client->recv();
+if(!data)
+    die("receive failed.");
+echo $data;
+// close connection
+$client->close();
+```
+
+创建一个TCP的同步客户端，此客户端可以用于连接到我们第一个示例TCP服务器，向服务器端发送一个 hello world 字符串，服务端返回一个 Server: hello world 字符串
+
+这个客户端是同步阻塞的，connect/send/recv 会等待 IO 完成后再返回。同步阻塞操作并不消耗 CPU 资源。IO 操作未完成当前进程的话会自动转入 sleep 模式，当IO完成后操作系统会唤醒当前进程，继续向下执行。
+
+- tcp 建连接需要三次握手，所以connect至少要三次网络传输过程
+- 在发送少量数据时 $client->send 可以立即返回，发送大量数据时，socket 缓存区可能会被塞满，send 操作会阻塞。
+- recv 操作会阻塞等待服务器返回数据
+- recv耗时 = 服务器处理时间 + 网络传输耗时
+
+###### tcp通信图解
+
+![tcp通信图解](https://camo.githubusercontent.com/f8315b68c96c2b19bf6cf89454555404cf4c9e22/68747470733a2f2f7777772e73776f6f6c652e636f6d2f7374617469632f696d6167652f7463705f73796e2e706e67)
+
+测试一下
+
+```shell
+php client.php
+Server: hello world
+```
+
+
+
 #### 1.3.8 创建异步TCP服务器
 
 #### 1.3.9 网络通信协议设计
