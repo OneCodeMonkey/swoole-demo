@@ -788,6 +788,50 @@ htf@LAPTOP-0K15EFQI:~/swoole-src/examples/5.0$
 
 #### 1.3.15 协程：实现 Go 语言风格的 defer
 
+由于`go` 语言不提供析构方法，而php 对象是有析构函数的，我们使用 __destruct 就可以实现 `go` 风格的 `defer`.
+
+###### sample code
+
+```php
+class DeferTask
+{
+    private $task;
+    function add(callable $fn) {
+        $this->tasks[] = $fn;
+    }
+    function __destruct() {
+        // 反转
+        $tasks = array_reverse($this->tasks);
+        foreach($tasks as $fn) {
+            $fn();
+        }
+    }
+}
+```
+
+- 基于php对象的析构方法实现的`defer` 更为灵活，如果希望改变执行的实际，甚至可以将 `DeferTask` 对象赋值给其他生命周期较长的变量，`defer` 任务的执行可以延长生命周期。
+- 默认情况下和 `go` 的 `defer` 一致，在函数退出时自动执行。
+
+###### 使用 defer
+
+```php
+function testDefer() {
+    $a = new DeferTask();
+
+    $a->add(function () {
+        // details
+    });
+    
+    $a->add(function () {
+        // details2
+    });
+    // 函数结束时，对象自动 destruct，defer 任务自动执行
+    return $retval;
+}
+```
+
+
+
 #### 1.3.16 协程： 实现 sync.WaitGroup 功能
 
 ### 1.4 注意点
