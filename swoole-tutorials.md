@@ -308,7 +308,7 @@ $serv->start();
 
 > finish 操作非必填
 
-#### 1.3.7 创建同步TCP服务器
+#### 1.3.7 创建同步TCP客户端
 
 ###### sample code
 
@@ -352,7 +352,42 @@ Server: hello world
 
 
 
-#### 1.3.8 创建异步TCP服务器
+#### 1.3.8 创建异步TCP客户端
+
+###### sample code
+
+```php
+// async_client.php
+$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+
+$client->on('connect', function($cli) {
+    $cli->send("Hello world\n");
+});
+
+$client->on('receive', function($cli, $data) {
+    echo "Received: " . $data . "\n";
+});
+
+$client->on('error', function($cli) {
+    echo "connect failed.\n";
+});
+
+$client->on('close', function($cli) {
+    echo "connection close.\n";
+});
+
+$client->connect('127.0.0.1', 9501, 0.5);
+```
+
+异步TCP客户端与同步TCP客户端不同，异步TCP客户端是非阻塞的，可以用来完成高并发的任务。swoole 提供的 redis-async, mysql-async 都是基于异步  swoole_client 实现。
+
+异步客户端需要设置回调函数，有4个时间回调必须设置 onConnect, onError, onReceiver, onClose。分别在客户端连接成功，连接失败，收到数据，连接关闭时触发。
+
+$client->connect() 发起连接的操作会立即返回，不存在等待时间。当对应的IO事件完成后，swoole 底层会自动调用设置好的回调
+
+> 异步客户端只能用于命令行环境
+
+
 
 #### 1.3.9 网络通信协议设计
 
