@@ -149,6 +149,40 @@ Server: hello
 
 #### 1.3.3 创建Web服务器
 
+###### sample code
+
+```php
+// http_server.php
+$http = new swoole_http_server('0.0.0.0', 9501);
+$http->on('request', function($request, $response) {
+    var_dump($request->get, $request->post);
+    $response->header('Content-Type', 'text/html;charset=utf-8');
+    $response->end("<h1>hello world. #" . rand(1000, 9999) . "</h1>");
+});
+$http->start();
+```
+
+Http服务器只需要关注请求响应即可，所以只需要监听 onRequest 事件。当有新的 Http 请求进入时就会触发此事件。事件的回调函数有两个参数，一个是 request 对象，包含了请求的相关信息，如 GET/POST 请求数据。
+
+另外要给是 response对象，对 request 的响应可以通过操作 response 对象来完成。$response->end() 方法表示输出一段 HTML 内容，并结束此请求。
+
+- 0.0.0.0 表示监听所有 IP 地址，一台服务器可能有多个 IP，如127.0.0.1 本地回环 IP，192.168.1.100 局域网IP，210.127.20.2 外网IP，当然我们也可以指定监听某个单独IP
+- 9501 监听的端口，如果被占用程序会抛出致命错误，中断执行。
+
+###### URL 路由
+
+应用程序可以根据 $request->server['request_uri'] 实现路由，如 http://127.0.0.1:9501/test/index/?a=1, 代码中可以这样实现 URL 路由。
+
+```php
+$http->on('request', function($request, $response){
+    list($controller, $action) = explode('/', trim($request->server['request_uri'], '/'));
+    // 根据$controller, $action 映射到不同的控制器类和方法
+    (new $controller)->$action($request, $response);
+});
+```
+
+
+
 #### 1.3.4 创建WebSocket服务器
 
 #### 1.3.5 设置定时器
