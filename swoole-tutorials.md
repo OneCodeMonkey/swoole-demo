@@ -978,7 +978,25 @@ function swoole_exit(msg) {
 
 #### 1.4.3 while 循环的影响
 
+异步程序如果碰到了死循环，事件将无法触发。异步IO程序使用 `Reactor` 模型，运行过程中必须在 `reactor->wait` 处轮询。如果遇到死循环，那么程序的控制权就在 while 中了，reactor 无法获取控制权，无法检测事件。所以 IO 事件回调函数也将无法触发。
 
+> 密集运算的代码没有任何IO操作，所以不能称之为阻塞。
+
+###### sample code
+
+```php
+$serv = new swoole_server('127.0.0.1', 9501);
+$serv->set(['worker_num' => 1]);
+$serv->on('receive', function ($serv, $fd, $reactorId, $data) {
+    while(1) {
+        $i++;
+    }
+    $serv->send($fd, 'Swoole: ' . $data);
+});
+$serv->start();
+```
+
+onReceive 事件中执行了死循环，结束不掉，所以 server 此时收不到任何客户端的请求。
 
 #### 1.4.4 stat 缓存清理
 
