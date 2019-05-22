@@ -1031,7 +1031,37 @@ function child_async(swoole_process $worker) {
 
 #### 1.4.6 进程隔离
 
+进程隔离是很多新手会经常遇到的问题。修改了全局变量的值，为什么就是不生效？原因在于全局变量在不同的进程，不同的内存空间里是隔离的。所以我在一个进程里改的全局变量，在另一个进程里使用时不会生效。
 
+- 不同进程的php变量是不共享的，即使是全局变量，在A进程内修改了它的值，在B进程里面也是无效的。
+- 如果需要在不同的 worker 进程中共享数据，可以选择 `redis`, `mysql`, 文件，`Swoole\Table`, `APCu`, `shmget` 等工具来实现。
+- 不同进程的文件句柄是隔离的，所以在A进程创建的 socket 连接或打开的文件，在B进程里是无效的，即使是将它的fd发送到B进程也是不可用的。
+
+###### sample code
+
+```php
+$server = new Swoole\Http\Server('127.0.0.1', 9501);
+$i = 1;
+$server->on('Request', function($request, $response) {
+    global $i;
+    $response->end($i++);
+});
+$server->start();
+```
+
+在多进程的服务器中，$i 变量虽然是全局变量（global）,但由于进程隔离的原因，假设现在有 4 个进程在工作中，在进程1中进行 $i++, 实际上只有进程1中的 $i 变成 2，另外其他3个进程里的 $i 还是1
+
+正确的做法是用 Swoole 提供的 Swoole\Table, 或 Swoole\Atomic 数据结构来保存数据，如上面代码可以这样实现：
+
+```php
+$server = new Swoole\Http\Server('127.0.0.1', 9501);
+$atomic = new Swoole\Atomic(1);
+$server->on('Request', function($request, $response) use ($atomic) {
+    $response->end($atomic->add(1));
+});
+```
+
+注：Swoole\Atomic 是建立在共享内存之上的，使用 add 方法加1时，在其他工作进程里也有效。
 
 ## 2. Server
 
