@@ -1000,7 +1000,9 @@ onReceive 事件中执行了死循环，结束不掉，所以 server 此时收�
 
 #### 1.4.4 stat 缓存清理
 
+php 底层对 `stat` 系统调用增加了 `cache` , 在使用 `stat`, `fstat`, `filemtime` 等函数时，底层可能会命中缓存，返回历史的数据。
 
+我们可以主动用 `clearstatcache` 方法来清理 `stat` 文件缓存。 
 
 #### 1.4.5 mt_rand 随机数
 
