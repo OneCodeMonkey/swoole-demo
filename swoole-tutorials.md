@@ -1006,6 +1006,27 @@ php 底层对 `stat` 系统调用增加了 `cache` , 在使用 `stat`, `fstat`, 
 
 #### 1.4.5 mt_rand 随机数
 
+在 swoole 中如果我们于父进程中调用了 `mt_rand`，不同的子进程内再次调用 `mt_rand` , 返回的结果会一模一样。如果想要得到真正的随机，我们要在子进程中重新 "种时间种子"。
+
+> 注：shuffer 和 array_rand 等依赖随机数的 php 函数同样会受到影响。
+
+```php
+mt_rand(0, 1);
+// start
+$worker_num = 16;
+// fork
+for($i = 0; $i < $worker_num; $i++) {
+    $process = new swoole_process('child_async', false, 2);
+    $pid = $process->start();
+}
+// async exec
+function child_async(swoole_process $worker) {
+    mt_srand();
+    echo mt_rand(0, 100) . PHP_EOL;
+    $worker->exit();
+}
+```
+
 
 
 #### 1.4.6 进程隔离
