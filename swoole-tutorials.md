@@ -953,13 +953,44 @@ onReceive 事件中执行了 sleep函数，100秒内我们的 server无法处理
 
 #### 1.4.2 exit/die 函数的影响
 
+在swoole代码中尽量别使用 `exit` 和 `die`，如果PHP代码中有 `exit`和 `die` ，当前工作的 `worker` 进程，`task` 进程，`user`进程，以及 `swoole_process` 进程会立即退出。
+
+使用 `exit` / `die` 之后，`worker` 进程会因为异常而退出，被 `master` 进程再次唤起，最终造成进程不断退出又不断启动和产生大量报警日志。
+
+建议使用 `try` / `catch` 来替换掉 `exit` / `die` ，实现中断执行，以跳出当前的 php 函数调用栈。
+
+```php
+function swoole_exit(msg) {
+    // php-fpm的环境
+    if(ENV == 'PHP')
+        exit;
+    // swoole的环境
+    else
+        throw new Swoole\ExitException($msg);
+}
+```
+
+> 上面的段代码还不能在项目中直接用，我们还要实现 ENV 变量和 Swoole\ExitException.
+
+异常处理的方式比 `exit` / `die` 要更友好，因为异常是可控的，`exit` / `die` 不可控，在最外层执行 try catch 操作就能捕获异常，仅终止当前的任务。`worker` 进程可以继续处理新的请求，而 `exit` / `die` 会导致进程直接退出，当前进程保存的所有资源和变量值等都会被销毁。如果进程内还有其他任务要处理，此操作也会导致数据全部丢失 ：(
+
+
+
 #### 1.4.3 while 循环的影响
+
+
 
 #### 1.4.4 stat 缓存清理
 
+
+
 #### 1.4.5 mt_rand 随机数
 
+
+
 #### 1.4.6 进程隔离
+
+
 
 ## 2. Server
 
