@@ -926,6 +926,31 @@ go(function () {
 
 #### 1.4.1 sleep/usleep 的影响
 
+在异步IO 的程序中，**不允许使用sleep/usleep/time_sleep_until/time_nanosleep, 等睡眠函数**
+
+原因如下：
+
+- sleep等函数会使进程陷入睡眠阻塞
+- 直到指定的时间后OS才会重新唤起当前睡眠了的进程
+- sleep执行过程中，只有signal才能打断
+- 由于swoole的signal 处理是基于signalfd 实现的，所以即使发送 signal 也无法中断swoole 的sleep
+
+swoole提供的 `swoole_event_add`, `swoole_timer_tick`, `swoole_timer_after`, `swoole_process:signal`, 异步 swoole_client 在进程 sleep 后会停止工作，swoole_serer 也无法处理新的请求。
+
+###### sample code
+
+```php
+$serv = new swoole_server('127.0.0.1', 9501);
+$serv->set(['worker_num' => 1]);
+$serv->on('receive', function($serv, $fd, $from_id, $data) {
+    sleep(100);
+    $serv->send($fd, 'Swoole: ' . $data);
+});
+$serv->start();
+```
+
+onReceive 事件中执行了 sleep函数，100秒内我们的 server无法处理任何进来的请求。
+
 #### 1.4.2 exit/die 函数的影响
 
 #### 1.4.3 while 循环的影响
