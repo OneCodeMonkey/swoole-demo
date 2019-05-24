@@ -1277,6 +1277,59 @@ $server->on('Request', function($request, $response) use ($atomic) {
 
 ### 3.11 并发调用
 
+在协程版本的 client 中实现了多个客户端并发发包的功能（`setDefer` 功能）
+
+通常如果一个业务请求中需要做一次 redis 请求和一次 mysql请求，那么网络 IO 会是这样：
+
+`redis发包 -> redis收包 -> mysql发包 -> mysql收包`
+
+以上流程网络IO的时间就等于 redis网络IO时间 + mysql网络IO时间
+
+但对于协程版本的 client，网络IO可以是这样的：
+
+`redis发包 -> mysql发包 -> redis收包 -> mysql收包`
+
+以上流程网络IO的时间就接近于 max(redis网络IO时间，mysql网络IO时间)
+
+目前支持并发请求的 client如下：
+
+- Swoole\Coroutine\Client
+- Swoole\Coroutine\Redis
+- Swoole\Coroutine\MySQL
+- Swoole\Coroutine\Http\Client
+
+除了 Swoolen\Coroutine\Client, 其他client 都实现了 defer 特性，用于声明延迟收包。因为 Swoole\Coroutine\Client 的发包和收包方法是分开的，所以就不需要实现 defer 特性了，而其他 client 的发包和收包都在一个方法中，所以需要要给 setDefer 方法来声明延迟收包，然后通过 recv 方法收包。
+
+###### setDefer 使用示例
+
+```php
+function onRequest($request, $response)
+{
+    // 并发请求n
+    $n = 5;
+    for($i = 0; $i < $n; $i++) {
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 80);
+        $cli->setHeaders([
+            'Host' => 'local.aa.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Encoding' => 'gzip',
+        ]);
+        $cli->set(['timeout' => 2]);
+        $cli->setDefer();
+        $cli->get('/test.php');
+        $clients[] = $cli;
+    }
+    for($i = 0; $i < $n; $i++) {
+    	$r = $clients[$i]->recv();
+        $result[] = $clients[$i]->body;
+    }
+    $response->end(json_encode($data));
+}
+```
+
+
+
 #### 3.11.1 setDefer 机制
 
 #### 3.11.2 子协程，通道
