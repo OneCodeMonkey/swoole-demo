@@ -1382,6 +1382,55 @@ $server->start();
 
 #### 3.11.2 子协程，通道
 
+除了只用底层内置的 `setDefer` 机制实现并发请求之外，还可以用 `子协程` + `通道` 实现并发。
+
+###### sample code
+
+```php
+$serv = new \swoole_http_server('127.0.0.1', 9501, SWOOLE_BASE);
+$serv->on('request', function($request, $response) {
+    $channel = new chan(2);
+    go(function () use ($chan) {
+        $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 80);
+        $cli->set(['timeout' => 10]);
+        $cli->setHeaders([
+            'Host' => 'www.qq.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Encoding' => 'gzip',
+        ]);
+        $ret = $cli->get('/');
+        $channel->push(['www.qq.com' => $cli->body]);
+    });
+    
+    go(function () use ($chan) {
+        $cli = new Swoole\Coroutine\Http\Client('www.163.com', 80);
+        $cli->set(['timeout' => 10]);
+        $cli->setHeaders([
+            'Host' => 'www.163.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Encoding' => 'gzip',
+        ]);
+        $ret = $cli->get('/');
+        $channel->push(['www.163.com' => $cli->body]);
+    });
+    $result = [];
+    for($i = 0; $i < 2; $i++)
+        $result += $channel->pop();
+    $response->end(json_encode($result));
+});
+$serv->start();
+```
+
+###### 实现原理
+
+- 在`onRequest` 中需要并发两个http请求，可以使用 go 函数创建两个子协程，并发地请求多个 url
+- 创建一个 channel，使用 use 闭包引用语法，传递给子协程
+- 主协程循环调用 $channel->pop()，等待子协程完成任务，yield 进入挂起状态
+- 并发的两个子协程其中某个完成请求时，调用 $channel->push() 将数据推送给主协程
+- 子协程完成 url 请求后退出，主协程从挂起状态中恢复，继续向下执行调用 $response->end() 发送响应结果。
+
 ### 3.12 实现原理
 
 #### 3.12.1 协程与线程
