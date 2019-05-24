@@ -1332,6 +1332,54 @@ function onRequest($request, $response)
 
 #### 3.11.1 setDefer 机制
 
+绝大部分协程组件，都支持了setDefer 特性，setDefer 特性可以将响应式的接口分拆为两个步骤，使用此机制可以实现并发请求。
+
+以 `HttpClient` 为例，设置 setDefer(true) 以后，发起 $http->get() 请求，将不再等待服务器返回结果，而是在 send request 之后，立即返回 true。在此之后可以继续发起其他 `HttpClient` ,`MySQL`, `Redis` 等请求，最后再使用 $http->recv() 接收响应内容。
+
+###### sample code
+
+```php
+<?php
+$server = new Swoole\Http\Server('127.0.0.1', 9501, SWOOLE_BASE);
+$server->set(['worker_num' => 1]);
+$server->on('Request', function($request, $response) {
+    $tcpClient = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    $tcpClient->connect('127.0.0.1', 9501, 0.5);
+    $tcpClient->send("hello world\n");
+    
+    $redis = new Swoole\Coroutine\Redis();
+    $redis->connect('127.0.0.1', 6379);
+    $redis->setDefer();
+    $redis->get('key');
+    
+    $mysql = new Swoole\Coroutine\MySQL();
+    $mysql->connect([
+        'host' => '127.0.0.1',
+        'user' => 'user',
+        'password' => 'password',
+        'database' => 'test',
+    ]);
+    $mysql->setDefer();
+    $mysql->query('select sleep(1)');
+    
+    $httpClient = new Swoole\Coroutine\Http\Client('0.0.0.0', 9599);
+    $httpClient->setHeaders(['Host' => 'api.mp.qq.com']);
+    $httpClient->set(['timeout' => 1]);
+    $httpClient->setDefer();
+    $httpClient->get('/');
+    
+    $tcp_res = $tcpClient->recv();
+    $redis_res = $redis->recv();
+    $mysql_res = $mysql->recv();
+    $http_res = $httpClient->recv();
+    
+    $response->end('Test End');
+});
+$server->start();
+```
+
+
+
 #### 3.11.2 子协程，通道
 
 ### 3.12 实现原理
