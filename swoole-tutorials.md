@@ -1433,6 +1433,60 @@ $serv->start();
 
 ### 3.12 实现原理
 
+`swoole-2.0` 基于 `setjmp`, `longjmp` 实现，在进行协程切换时会自动保存 `Zend VM` 的内存状态（主要是 `EG` 全局内存和 `vm stack` ）
+
+- `setjmp` 和 `longjmp` 主要用于从 `ZendVm` 的 `C` 堆栈跳回 `Swoole` 的 `C` 回调函数
+- 协程的创建，切换，挂起，销毁，全部都是内存操作。消耗是非常低的。
+
+###### sample code
+
+```php
+$server = new Swoole\Http\Server('127.0.0.1', 9501, SWOOLE_BASE);
+#1
+$server->on('Request', function($request, $response) {
+    $mysql = new Swoole\Coroutine\MySQL();
+    #2
+    $res = $mysql->connect([
+        'host' => '127.0.0.1',
+        'use' => 'root',
+        'password' => '123456',
+        'database' => 'test',
+    ]);
+    #3
+    if ($res == false) {
+        $response->end('MySQL connect fail!');
+        return;
+    }
+    $ret = $mysql->query('show tables', 2);
+    $response->end('Swoole response is ok, result=' . var_export($ret, true));
+});
+$server->start();
+```
+
+- 上面代码仅用了一个进程，就可以并发处理大量请求。
+- 程序的性能基本上与异步回调方式相同
+
+###### 运行过程
+
+- 调用 `onRequest` 事件回调函数时，底层会调用 C 函数 coro_create 创建一个协程（#1），同时保存这个时间点的 CPU 寄存器状态和 ZendVM 的 栈信息。
+- 调用 mysql->connect 时发生IO操作，底层会调用 C 函数 coro_save 保存当前协程的状态，包括 Zend VM 上下文以及协程描述信息，并调用 coro_yield 让出程序控制权，当前的请求会挂起（#2）
+- 协程让出程序控制权以后，会继续进入 EventLoop 处理其他事件，这时 swoole 会继续去处理其他客户端发来的 request请求
+- IO 事件完成后，MySQL 连接成功或失败，底层会调用 C 函数 coro_resume 恢复对应的协程，恢复 Zend VM 上下文，继续向下执行（#3）
+- mysql->query() 的执行过程与 mysql->connect 一致，也会进行一次协程切换调度
+- 所有操作完成后，调用 end 方法返回结果，并销毁此协程
+
+###### 协程开销
+
+相比普通的异步回调程序，协程会多占用额外的内存。
+
+- swoole4 协程需要为每个并发保存 `zend stack` 栈内存并维护对应的 虚拟机状态。如果程序并发很大，可能会占用大量内存。取决于 C 函数，php 函数调用栈的深度
+
+- 协程调度会增加额外的一些 cpu 开销，可使用官方提供的 
+
+  [协程切换压测脚本]: https://github.com/swoole/swoole-src/blob/master/benchmark/co_switch.php
+
+  测试性能
+
 #### 3.12.1 协程与线程
 
 #### 3.12.2 发送数据协程调度
