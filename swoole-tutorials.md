@@ -1501,7 +1501,7 @@ $server->start();
 
 swoole 的协程在底层实现上是单线程的。同一事件只有一个协程在工作，协程的执行是串行的。这与线程不同，多个线程会被操作系统调度到多个 CPU **并行** 执行。
 
-当一个协程在运行时，其他协程会停止工作。当前协程执行阻塞 IO 的操作时会挂起，底层调度器会进入 LoopEvent，当有 IO完成事件时，底层调度器恢复事件对应的协程的执行。
+当一个协程在运行时，其他协程会停止工作。当前协程执行阻塞 IO 的操作时会挂起，底层调度器会进入 EventLoop，当有 IO完成事件时，底层调度器恢复事件对应的协程的执行。
 
 对于 CPI 多核的利用，仍然依赖于 swoole 引擎的多进程机制。
 
@@ -1636,6 +1636,118 @@ Percentage of the requests served within a certain time (ms)
 
 
 #### 3.12.4 4.0协程实现原理
+
+###### 内存栈
+
+swoole4 的版本实现了 PHP栈+C栈 的双栈模式，创建协程时会创建一个 C 栈，默认尺寸为 2m，创建一个php栈，默认尺寸为 8k，
+
+C 栈主要用于保存底层函数调用的局部变量数据，用于解决 `call_user_func`, `array_map` 等 C 函数调用在协程切换时未能还原的问题。
+
+swoole4 无论如何切换协程，底层总能正确地切换回原先的 C 函数栈帧，继续向下执行。
+
+> C 栈分配的 2m 内存使用了虚拟内存，并不会分配实际内存。
+
+swoole4 的底层还支持了 嵌套关系，在协程内创建子协程，子协程挂起时仍然可以恢复父进程的执行。
+
+> 底层最大允许 128 层嵌套
+
+```c
+Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) : fn_(fn), stack_size(stack_size), private_data_(private_data) {
+    protect_page_ = 0;
+    end = false,
+    swap_ctx_ = NULL;
+    
+    stack_ = (char*) sw_malloc(stack_size_);
+    swDebug("alloc stack: size=%u, ptr=%p.", stack_size_, stack_);
+}
+```
+
+php栈主要保存php函数调用的全局变量数据，主要是 `zval` 结构体，php 中的标量类型，如整型，浮点型，布尔型等直接保存在 `zval` 结构体内，而 `object`, `string`, `array` 是使用引用计数管理且在堆上存储的。
+
+8K 的php栈足以保存整个函数调用的 全局变量。
+
+```php
+static inline void sw_vm_stack_init () {
+    uint32_t size = COROG.stack_size;
+    zend_vm_stack page = (zend_vm_stack) emalloc(size);
+    
+    page->top = ZEND_VM_STACK_ELEMENTS(page);
+    page->end = (zval*) ((char*)page + size);
+    page->prev = NULL;
+    
+    EG(vm_stack) = page;
+    EG(vm_stack)->top++;
+    EG(vm_stack_top) = EG(vm_stack)->top;
+    EG(vm_stack_end) = EG(vm_stack)->end;
+}
+```
+
+###### 进程切换
+
+C 栈切换使用了 boost.context 1.60 汇编代码，用于保存寄存器，切换指令序列。只要是 `jump_fcontext` 这个 ASM 函数提供。php栈的切换是随 C栈的切换同步进行的。底层会切换 EG(vm_stack) 使 php 恢复到正确的 php 函数栈帧。swoole4.0.2 版本增加了 ob 输出缓存区的切换，ob_start 等操作也可以用于协程。
+
+> boost.context 汇编切换协程栈的效率非常高，经过测试每秒可完成 2亿 次切换
+>
+> 某些平台下不支持 boost.context 汇编，底层将使用 ucontext
+
+###### 性能对比
+
+- boost.context: 8ns / 23 cycles
+- ucontext: 547ns / 1433 cycles
+- php context: 170ns
+
+###### 调用栈切换
+
+```c
+int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval) {
+    coro_task *task = SWCC(current_task);
+    resume_php_stack(stack);
+    if(EG(current_execute_data)->prev_execute_data->online->result_type != IS_UNUSED && retval) {
+        ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
+    }
+    if(OG(handlers).elements) {
+        php_outputs_deactivate();
+        if(!SWCC(current_coro_output_ptr)) {
+            php_output_activate();
+        }
+    }
+    if(SWCC(current_coro_output_ptr)) {
+        memcpy(SWOG, SWCC(current_coro_output_ptr), sizeof(zend_output_globals));
+        efree(SWCC(current_coro_output_ptr));
+        SWCC(current_coro_output_ptr) = NULL;
+    }
+    swTraceLog(SW_TRACE_COROUTINE, "cid = %d", task->cid);
+    coroutine_resume_naked(task->co);
+    
+    if(unlikely(EG(exception))) {
+        if(retval) {
+            zval_ptr_dtor(retval);
+        }
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    return CORO_END;
+}
+```
+
+###### 协程调度
+
+swoole4 的协程实现中，主协程即为 `Reactor` 协程，负责整个 EventLoop 运行。主协程实现事件监听，在 IO 事件完成后唤醒其他工作协程。
+
+**协程挂起：**
+
+在工作协程中执行一些 IO 操作时，底层会将 IO 事件注册到 EventLoop，并让出执行权。
+
+- 嵌套创建的非初代协程，会逐个让出到父协程，直到回到主协程。
+- 在主协程上创建的初代协程，会立即回到主协程
+- 主协程的 `Reactor` 会继续处理IO 事件，wait 监听新事件（`epoll_wait`）
+
+> 初代协程是在 `EventLoop` 内直接创建的协程，例如 `onReceive` 回调中的内置协程就是初代协程
+>
+> 
+
+**协程恢复：**
+
+当主协程的 `Reactor` 接收到新的 IO 事件，底层会挂起主协程，并恢复 IO 事件对应的工作协程。该工作协程挂起或退出时，会再次回到主协程。
 
 #### 3.12.5 协程客户端超时规则
 
