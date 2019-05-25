@@ -1789,6 +1789,137 @@ Co::set([
 
 #### 3.12.6 协程执行流程
 
+协程执行的流程遵循一下规则：
+
+- 协程没有 IO 等待，正常执行php 代码，不会产生执行流程切换
+- 协程遇到 IO 等待会立即将控制权切换，待 IO 操作完成后，重新将执行流切回到原来协程所切出的点
+- 协程并行协程依次执行，
+- 协程嵌套执行流程是由外向内，逐层进入，直到发生 IO，然后再逐层由内向外切到外邻的协程，父协程不会等待子协程结束。
+
+###### 无IO等待
+
+> 正常执行 php 代码，不会产生执行流程切换。
+>
+> 无IO 操作的协程，相当于一次 php 函数调用
+
+```php
+echo "main start\n";
+go(function() {
+    echo "coro " . co::getcid() . " start\n";
+});
+echo "end\n";
+/*
+main start
+coro 1 start
+end
+*/
+```
+
+###### IO 等待
+
+> 立即将控制权切出，等 IO 完成后，重新将执行流切回到原来协程切出去的点。
+>
+> ```php
+> echo "main start\n";
+> go(function() {
+>     echo "coro " . co::getcid() . " start\n";
+>     co::sleep(.1);   // switch，切出控制权
+>     echo "coro " . co::getcid() . " end\n";
+> });
+> echo " end\n";
+> /*
+> main start
+> coro 1 start
+> end
+> coro 1 end
+> */
+> ```
+>
+> ###### 协程并行
+>
+> 多个协程其实是串行依次执行的。
+>
+> ```php
+> echo "main start\n";
+> go(function() {
+>     echo "coro " . co::getcid() . " start\n";
+>     co::sleep(.1);   // switch, 切除控制权
+>     echo "coro " . co::getcid() . " end\n";
+> });
+> echo "main flag\n";
+> go(function() {
+>     echo "coro " . co::getcid() . " start\n";
+>     co::sleep(.1);
+>     echo "coro " . co::getcid() . " end\n";
+> });
+> echo " end \n";
+> /*
+> main start
+> coro 1 start
+> main flag
+> coro 2 start
+> end
+> coro 1 end
+> coro 2 end
+> */
+> ```
+>
+> ###### 协程的嵌套
+>
+> 协程的执行流程是由外向内逐层进入，直到发生IO操作，然后从内向外切回外邻协程，父协程不会等待子协程结束。
+>
+> ```php
+> echo "main start\n";
+> go(function() {
+>     echo "coro " . co::getcid() . " start\n";
+>     go(function() {
+>         echo "coro " . co::getcid() . " start\n";
+>         co::sleep(.1);
+>         echo "coro " . co::getcid() . " end\n";
+>     });
+>     echo "coro " . co::getcid() . " dont wait child coroutine\n";
+>     co::sleep(.2);
+>     echo "coro " . co::getcid() . " end\n";
+> });
+> echo "end\n";
+> /*
+> main start
+> coro 1 start
+> coro 2 start
+> coro 1 do not wait children coroutine
+> end
+> coro 2 end
+> coro 1 end
+> */
+> ```
+>
+> ```php
+> echo "main start\n";
+> go(function() {
+>     echo "coro " . co::getcid() . " start\n";
+>     go(function() {
+>         echo "coro " . co::getcid() . " start\n";
+>         co::sleep(.2);
+>         echo "coro " . co::getcid() . " end\n";
+>     });
+>     echo "coro " . co::getcid() . " dont wait child coroutine\n";
+>     co::sleep(.1);
+>     echo "coro " . co::getcid() . " end\n";
+> });
+> echo "end\n";
+> /*
+> main start
+> coro 1 start
+> coro 2 start
+> coro 1 do not wait children coroutine
+> end
+> coro 1 end
+> coro 2 end
+> */
+> ```
+>
+> 
+
 ### 3.13 注意点
 
 #### 3.13.1 在多个协程间共用同一个协程客户端
