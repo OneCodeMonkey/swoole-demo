@@ -2215,6 +2215,104 @@ $retval = $obj->$method('hello', ... $args);
 
 #### 3.13.3 使用类静态变量/全局变量保存上下文
 
+多个协程是并发执行的，因此不能使用类静态变量 / 全局变量 来保存协程上下文内容。使用局部变量是安全的，因为局部变量的值会自动保存在协程栈中，其他协程访问不到协程的局部变量。
+
+###### sample code
+
+```php
+// 错误写法
+$_array = [];
+$serv->on('Request', function($request, $response) {
+    global $_array;
+    // 请求 /a (协程1)
+    if($request->server['request_uri'] == '/a') {
+        $_array['name'] = 'a';
+        co::sleep(1.0);
+        echo $_array['name'];
+        $response->end($_array['name']);
+    }
+    // 请求 /b (协程2)
+    else {
+        $_array['name'] = 'b';
+        $response->end();
+    }
+});
+```
+
+发起两个并发请求
+
+```shell
+curl http://127.0.0.1:9501/a
+curl http://127.0.0.1:9501/b
+```
+
+协程1中设置了全局变量 `$_array['name']` 的值为 `a`， 协程1 调用co::sleep 挂起，然后协程2执行，将 `$_array['name']` 的值设为 b，协程2 结束。这是定时器返回，底层恢复协程1 的运行，而协程1的逻辑中有一个上下文的依赖关系。当再次打印  `$_array['name']` 的值时，程序预期是 a，但这个值已被协程2所修改，所以实际结果是 b，这样就造成逻辑错误.
+
+同理, 使用类静态变量 `class::$array`, 全局对象属性 `$object->array`, 其他超全局变量 `$GLOBALS` 等，进行上下文保存在协程程序中是非常危险的，可能会出现不符合预期的行为。
+
+###### 使用 Context 管理上下文
+
+- 可以使用一个 `Context` 类来管理协程的上下文，在 `Context` 类中，使用 `Coroutine::getUid` 获取协程 `ID`, 然后隔离不同协程之间的全局变量
+- 协程退出时，清理上下文数据
+
+Context:
+
+```php
+use Swoole\Coroutine;
+class Context
+{
+    protected static $pool = [];
+    static function get($key)
+    {
+        $cid = Coroutine::getUid();
+        if($cid < 0)
+            return null;
+        if(isset(self::$pool[$cid][$key])) {
+            return self::$pool[$cid][$key];
+        }
+        return null;
+    }
+    
+    static function put($key, $item)
+    {
+        $cid = Coroutine::getuid();
+        if($cid > 0)
+            self::$pool[$cid][$key] = $item;
+    }
+    
+    static function delete($key = null)
+    {
+        $cid = Coroutine::getuid();
+        if($cid > 0) {
+            if($key)
+                unset(self::$pool[$cid][$key]);
+            else
+                unset(self::$pool[$cid]);
+        }
+    }
+}
+```
+
+```php
+$serv->on('Request', function($request, $response) {
+    if($request->server['request_uri'] == '/a') {
+        Context::put('name', 'a');
+        co::sleep(1.0);
+        echo Context::get('name');
+        $response->end(Context::get('name'));
+        // 退出协程时清理
+        Context::delete('name');
+    } else {
+        Context::put('name', 'b');
+        $response->end();
+        // 退出协程时清理
+        Context::delete();
+    }
+});
+```
+
+
+
 #### 3.13.4 退出协程
 
 #### 3.13.5 异常处理
