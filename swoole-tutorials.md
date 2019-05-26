@@ -1093,6 +1093,82 @@ $server->on('Request', function($request, $response) use ($atomic) {
 
 ## 3. Coroutine
 
+从swoole2.0开始，提供了协程（coroutine）特性，可使用协程 + 通道的全新编程模式来代替异步回调。应用层可以使用完全同步的编程方式，底层调度自动实现异步 IO
+
+```php
+go(function() {
+    $redis = new Swoole\Coroutine\Redis();
+    $redis->connect('127.0.0.1', 6379);
+    $val = $redis->get('key');
+});
+```
+
+> 4.0.0+ 仅支持 PHP7的版本
+>
+> 4.0.1 版本开始，去除了 --enable-coroutine 编译选项，改为
+>
+> [动态配置]: https://wiki.swoole.com/wiki/page/949.html
+>
+> 。
+
+协程可以理解为纯用户态的线程，其通过**协作** 而不是抢占来进行切换。相对于进程或线程，协程所有的操作都可以在用户态完成，创建和切换的消耗更低。swoole 可以为每一个请求创建对应的协程。根据 IO 的状态来合理的调度协程，这会带来几点好处：
+
+1. 开发者可以无感知地用同步的代码编写方式达到异步 IO 的效果和性能。避免了传统异步回调带来的离散代码逻辑和陷入多层回调中，导致代码无法维护。
+2. 由于底层封装了协程，所以对比传统的php层协程框架，我们不需要使用 `yield` 关键词来表示一个协程 IO 操作，不需要再对 `yield` 语义进行深入理解以及对每一级的调用都修改为 `yield` ，提高编码效率
+
+可满足大部分的场景需要，对于需要自定义网络协议的，开发者可以用协程 的 TCP 或 UDP 接口去封装自定义的协议。
+
+###### 环境要去
+
+- PHP version >=7.0
+- 基于 `Server`, `Http\Server`, `WebSocket\Server` 进行开发，底层在 `onRequest`, `onReceive`, `onConnect` 等事件回调之前自动创建一个协程，在回调函数中使用协程 API
+- 使用 coroutine::create 或 go 方法创建协程，在创建的协程中使用协程 API
+
+###### 相关配置
+
+在`server` 的 `set` 方法中增加了一个配置参数 `max_coroutine`， 用于配置一个 `worker` 进程最多同时处理的协程数。因为随着 `worker` 进程处理的协程数目越来越多，其占用的内存也会增加，为了避免超出 php 的 `memory_limit` 限制，需要根据业务的实际压力测试结果来调，默认为 3000
+
+###### sample code
+
+```php
+$http = new swoole_http_server('127.0.0.1', 9501);
+$http->on('request', function($request, $response) {
+    $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    $client->connect('127.0.0.1', 8888, 0.5);
+    // 调用 connect 将触发协程切换
+    $client->send('hello world from swoole');
+    // recv() 也会触发协程切换
+    $ret = $client->recv();
+    $response->header('Content-Type', "text/plain");
+    $response->end($ret);
+    $client->close();
+});
+$http->start();
+```
+
+当代码执行到 connect() 和 recv() 时，底层会触发进行协程切换，此时可以去处理其他的事件或接收新的请求。当此客户端 connect 成功或后端服务 **回包**后，底层会恢复协程上下文，代码继续从切换点开始恢复执行。这整个过程底层自动完成，开发者不需要参与。
+
+###### 全局变量
+
+1. 全局变量：协程使得原有的异步逻辑同步化，但是在协程的切换是隐式发生的，所以在协程切换的前后不能保证全局变量以及 static 变量的一致性。
+2. 请勿在 4.0 一下的版本的两种场景下触发协程切换：
+   - 析构函数
+   - 魔术方法 __call(), __ get(), __set() 等
+3. 与 xdebug，xhprof，blackfire 等 zend 扩展不兼容。比如不能使用 xhprof 对协程 server 进行性能采样分析。
+
+###### 协程组件
+
+1. TCP/UDP Client:  Swoole\Coroutine\Client
+2. HTTP/WebSocket Client: Swoole\Coroutine\HTTP\Client
+3. HTTP2 Client: Swoole\Coroutine\HTTP2\Client
+4. Redis Client: Swoole\Coroutine\Redis
+5. MySQL Client: Swoole\Coroutine\MySQL
+6. Postgresql Client: Swoole\Coroutine\PostgreSQL
+
+- 在协程 Server 中使用协程版 Client, 可以实现全异步 Server
+- 在其他程序中可以使用 go 关键词手动创建协程
+- 同时 Swoole 提供了协程工具集：Swoole\Coroutine, 提供了获取当前协程 id，反射调用等能力。 
+
 ### 3.1 Coroutine
 
 #### 3.1.1 Coroutine::getCid
