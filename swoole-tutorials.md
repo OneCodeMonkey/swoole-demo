@@ -2175,6 +2175,44 @@ class RedisPool
 
 #### 3.13.2 禁止使用协程API的场景（2.x版本）
 
+在 `ZendVM` 中，魔术方法，反射函数，`call_user_func`, `call_user_func_array` 是由 C 函数实现，并未 `opcode` ，这些操作可能会与 `swoole` 底层的协程调度产生冲突。因此禁止在这些地方使用协程的 API，我们最好使用 php 提供的动态函数调用语法来实现上述之类的功能。
+
+> 在swoole4+ 版本已解决此问题，可以在任意函数中使用协程，下列禁用场景仅适用于 swoole 2.x 版本
+
+`__get()`, `__set()`, `__call()`, `__callStatic`, `__toString`, `__invoke`, `__destruct`, `call_user_func`, `call_user_func_array`, `ReflectionFunction::invoke`, `ReflectionFunction::invokeArgs`, `ReflectionMethod::invoke`, `ReflectionMethod::invokeArgs`, `array_walk / array_map`
+
+###### 字符串函数
+
+```php
+// 错误写法
+$func = 'test';
+$retval = call_user_func($func, 'hello');
+```
+
+```php
+// 正确写法
+$func = 'test';
+$retval = $func('hello');
+```
+
+###### 对象方法
+
+```php
+// 错误的写法
+$retval = call_user_func(array($obj, 'test'), 'hello');
+$retval = call_user_func_array(array($obj, 'test'), 'hello', array(1, 2, 3));
+```
+
+```php
+// 正确写法
+$method = 'test';
+$args = array(1, 2, 3);
+$retval = $obj->$method('hello');
+$retval = $obj->$method('hello', ... $args);
+```
+
+
+
 #### 3.13.3 使用类静态变量/全局变量保存上下文
 
 #### 3.13.4 退出协程
