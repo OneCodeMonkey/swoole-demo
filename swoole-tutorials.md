@@ -2317,6 +2317,25 @@ $serv->on('Request', function($request, $response) {
 
 #### 3.13.5 异常处理
 
+在协程编程中，可以直接使用 `try/catch` 处理异常。但必须在协程内捕获，不能跨协程捕获异常
+
+###### sample code
+
+```php
+// 在协程内捕获异常
+function test()
+{
+    throw new \RuntimeException(__FILE__, __LINE__);
+}
+Swoole\Coroutine::create(function () {
+    try{
+        test();
+    } catch (\Throwable $e) {
+     	echo $e;   
+    }
+});
+```
+
 ### 3.14 扩展组件
 
 #### 3.14.1 MongoDB
