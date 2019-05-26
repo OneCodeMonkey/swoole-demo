@@ -1167,9 +1167,54 @@ $http->start();
 
 - 在协程 Server 中使用协程版 Client, 可以实现全异步 Server
 - 在其他程序中可以使用 go 关键词手动创建协程
-- 同时 Swoole 提供了协程工具集：Swoole\Coroutine, 提供了获取当前协程 id，反射调用等能力。 
+- 同时 Swoole 提供了协程工具集：Swoole\Coroutine, 提供了获取当前协程 id，反射调用等能力。
 
 ### 3.1 Coroutine
+
+###### 创建协程
+
+```php
+go(function() {
+    co::sleep(0.5);
+    echo "hello";
+});
+go('test');
+go([$object, 'method']);
+```
+
+###### channel 操作
+
+```php
+$c = new chan(1);
+$c->push($data);
+$c->pop();
+```
+
+###### 协程客户端
+
+```php
+$redis = new Co\Redis;
+$mysql = new Co\MySQL;
+$http = new Co\Http\Client;
+$tcp = new Co\Client;
+$http2 = new Co\Http2\Client;
+```
+
+###### 其他API
+
+```php
+co::sleep(100);
+co::fread($fp);
+co::gethostbyname('www.baidu.com');
+```
+
+###### 延迟执行
+
+```php
+defer(function () use ($db) {
+    $db->close();
+});
+```
 
 #### 3.1.1 Coroutine::getCid
 
@@ -1998,7 +2043,28 @@ end
 
 ### 3.13 注意点
 
-#### 3.13.1 在多个协程间共用同一个协程客户端
+###### 范式
+
+- 协程内部禁止使用全局变量
+- 协程使用 `use` 关键字引入外部变量到当前作用域时，禁止使用引用方式
+- 协程之间进行通信必须使用通道 `channel`
+
+换句话说，协程间通信不要使用全局变量或者引用外部变量到局部作用域，而要使用 channel
+
+- 项目中如果有扩展 `hook` 了 `zend_execute_ex` 或者 `zend_execute_internal` ，特别需要注意 C 栈，可以用 `co::set` 重新设置 C 栈大小
+
+`hook` 这两个入口函数之后，大部分情况下会把平坦的php指令调用变为 C 函数调用，增加 C 栈的消耗。
+
+###### 与其他php扩展的冲突
+
+因为某些跟踪调试的 php 扩展大量使用了 全局变量，可能会导致 swoole 协程发生崩溃。这些扩展有： xdebug, phptrace, aop, molten, xhprof, phalcon(swoole的协程无法运行在 phalcon 框架下)
+
+###### 以下行为可能导致严重错误
+
+- 在多个协程间共用一个连接
+- 使用类静态变量 / 全局变量  来保存上下文
+
+####  3.13.1 在多个协程间共用同一个协程客户端
 
 #### 3.13.2 禁止使用协程API的场景（2.x版本）
 
