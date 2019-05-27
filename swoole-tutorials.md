@@ -2400,6 +2400,28 @@ go(function() {
 
 ### 4.1 文件操作
 
+swoole4 增加了对文件操作的 `Hook`, 在运行时开启协程后，可以将文件读写的 `IO` 操作转为协程模式。
+
+底层使用了 `AIO` 线程池模拟实现，在 `IO` 完成时唤醒对应协程。
+
+###### 可用列表
+
+`foepn`, `fread`/`fgets`, `fwrite`/`fputs`, `file_get_contents`/`file_put_contents`, `unlink`, `mkdir`, `rmdir`
+
+###### sample code
+
+```php
+Swoole\Routine::enableCoroutine(true);
+go(function() {
+    $fp = fopen('test.log', 'a+');
+    fwrite($fp, str_repeat('A', 2048));
+    fwrite($fp, str_repeat('B', 2048));
+    fclose($fp);
+});
+```
+
+
+
 ### 4.2 睡眠函数
 
 ### 4.3 开关选项
