@@ -2424,6 +2424,26 @@ go(function() {
 
 ### 4.2 睡眠函数
 
+swoole4 增加了对 `sleep` 函数的 `Hook`, 底层替换了 `sleep`, `usleep`, `time_nanosleep`, `time_sleep_until` 四个函数。
+
+当调用这些睡眠函数时，会自动切换为协程定时器调度，不会阻塞进程。
+
+###### sample code
+
+```php
+Swoole\Runtime::enableCoroutine(true);
+go(function() {
+    sleep(1);
+    echo "sleep 1s\n";
+    usleep(1000);
+    echo "sleep 1ms\n";
+});
+```
+
+###### 例外情况
+
+由于底层的定时器最小粒度是 `1ms`, 因此使用 `usleep` 等高精度睡眠函数时，如果设置为低于 `1ms` 时，将直接使用 `sleep` 系统调用。可能会引起非常短暂的睡眠阻塞。
+
 ### 4.3 开关选项
 
 ### 4.4 严格模式
