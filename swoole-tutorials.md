@@ -2603,6 +2603,36 @@ swoole_timer_tick(3000, function() {
 
 ### 5.2 swoole_timer_after
 
+在指定的时间后执行函数
+
+```php
+int swoole_timer_after(int $after_timer_ms, mixed $callback_function);
+```
+
+`swoole_timer_after` 函数是一个一次性定时器，执行完成后就会销毁。此函数与 php 标准库提供的 `sleep`  函数不同，`after` 是非阻塞的。而 `sleep` 调用后会导致当前进程进入阻塞，将无法处理新的请求。
+
+执行成功返回定时器 ID，若取消定时器，可调用 `swoole_timer_clear`
+
+- `$after_time_ms` 最大步地超过 86400000，即一天
+- `$callback_function` 时间到期后所执行的函数，必须是可以调用的。
+- 可以使用 匿名函数的 `use` 方法传参到回调函数中
+
+###### 协程模式
+
+在协程模式下，`swoole_timer_after` 回调中会自动创建一个协程，可直接使用协程相关 API，无需调用 `go` 来创建协程。
+
+> 可设置 `enable_coroutine` 关闭自动创建协程
+
+###### sample code
+
+```php
+swoole_timer_after(1000, function () use ($str) {
+    echo "timeout, " . $str . "\n";
+});
+```
+
+
+
 ### 5.3 swoole_timer_clear
 
 ## 6. Memory
