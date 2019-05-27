@@ -2503,6 +2503,47 @@ sleep(1);		// Warning: sleep() has been disabled for security reasons in strictm
 
 ## 5. Timer
 
+毫秒精度的定时器。底层基于 `epoll_wait` 和 `setitimer` 实现，数据结构使用 `最小堆`，可支持添加大量定时器。
+
+- 在同步进程中使用 `setitimer` 和信号实现，如 `Manager` 和 `TaskWorker` 进程
+- 在异步进程中使用 `epoll_wait`/`kevent`/`poll`/`select` 超时时间实现
+
+###### 性能
+
+底层使用最小堆数据结构实现定时器，定时器的添加和删除，全部为内存操作，因此性能是非常高的。官方的
+
+[基准测试脚本]: https://github.com/swoole/swoole-src/blob/master/benchmark/timer.php
+
+ 中添加或删除 `10万` 个随机时间的定时器耗时为 `0.08s` 左右。
+
+```php
+~/workspace/swoole/benchmark$ php timer.php
+add 100000 timer :0.091133117675781s
+del 100000 timer :0.084658145904541s
+```
+
+>  定时器是内存损耗，而没有IO损耗
+
+###### 差异
+
+`Timer` 和 `PHP` 本身的 `pcntl_alarm` 是不同的。`pcntl_alarm` 是基于时钟信号 + `tick` 函数实现，存在一些如下几点缺点：
+
+- 最大进度是秒级，而 `Timer` 最大进度是毫秒
+- 不支持同时设定多个定时器程序
+- `pcntl_alarm` 依赖于 `declare(ticks = 1)`, 性能很差
+
+###### 零毫秒定时器
+
+底层不支持时间参数为 `0` 的定时器。这与 `Node.js` 等编程语言不同，在`Swoole` 里可以使用 `Swoole\Event::defer` 实现类似功能。
+
+```php
+Swoole\Event::defer(function () {
+    echo "hello\n";
+});
+```
+
+上述代码与 `JS` 中的 `setTimeout(0, func)` 效果是完全一致的。
+
 ### 5.1 swoole_timer_tick
 
 ### 5.2 swoole_timer_after
