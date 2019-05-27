@@ -2344,7 +2344,7 @@ Swoole\Coroutine::create(function () {
 
 ## 4. Runtime
 
-swoole4.0 底层增加了一个新的特性，可以在运行时动态地将基于 `php_stream` 实现的扩展，`php` 网络客户端代码一键协程化。底层替换了 `ZendVM` `Stream` 的函数指针，所有使用 `php_stream` 运行的 `socket` 的操作均变成协程调度的异步 IO
+swoole4.0 底层增加了一个新的特性，可以在运行时动态地将基于 `php_stream` 实现的扩展和 `php` 网络客户端代码一键协程化。底层替换了 `ZendVM` `Stream` 的函数指针，所有使用 `php_stream` 运行的 `socket` 的操作均变成协程调度的异步 IO
 
 目前有php原生的 `Redis`, `PDO`, `MySQLi` 协程化的支持。
 
