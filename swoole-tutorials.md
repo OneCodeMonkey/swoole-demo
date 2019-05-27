@@ -2482,6 +2482,25 @@ go(function() {
 
 ### 4.4 严格模式
 
+> 注意：严格模式和 `enableCoroutine` 存在冲突，不要同时启用
+
+在 swoole4 版本以后，开启严格模式以后，调用常用的阻塞 IO 的函数和方法会出现警告。
+
+###### function prototype
+
+```php
+function Runtime::enableStrictMode();
+```
+
+###### sample code and warning
+
+```php
+Swoole\Runtime::enableStrictMode();
+sleep(1);		// Warning: sleep() has been disabled for security reasons in strictmode.php on line 8
+```
+
+
+
 ## 5. Timer
 
 ### 5.1 swoole_timer_tick
