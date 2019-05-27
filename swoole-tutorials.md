@@ -2635,6 +2635,27 @@ swoole_timer_after(1000, function () use ($str) {
 
 ### 5.3 swoole_timer_clear
 
+使用定时器ID来删除定时器
+
+```php
+bool swoole_timer_clear(int $timer_id);
+```
+
+- `$timer_id` : 定时器ID，调用 `swoole_timer_tick`, `swoole_timer_after` 后会返回一个int 的 timer_id
+- `swoole_timer_clear` 不能用来清除其他进程的定时器，只能作用于当前进程
+
+###### sample code
+
+```php
+$timer = swoole_timer_after(1000, function () {
+    echo "timeout\n";
+});
+var_dump(swoole_timer_clear($timer));  // bool(true)
+var_dump($timer);   // int(1)
+```
+
+
+
 ## 6. Memory
 
 ## 7. Http\Server
