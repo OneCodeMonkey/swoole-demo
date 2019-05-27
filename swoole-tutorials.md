@@ -2546,6 +2546,61 @@ Swoole\Event::defer(function () {
 
 ### 5.1 swoole_timer_tick
 
+设置一个间隔时钟定时器，与 `after` 定时器不同的是 `tick` 定时器会持续触发，直到调用 `swoole_timer_clear` 清楚这个 timer
+
+```php
+int swoole_timer_tick(int $mesc, callable $callback, [$mixed $param]);
+```
+
+- `$mesc` 指定时间，单位为毫秒。如 `1000` 表示 `1` 秒，最大不得超过 `86400000`
+- `$callback_function` 时间到期后所执行的函数，必须是可以调用的
+- 可以使用匿名函数的 `use` 语法传递参数到回调函数中
+- 定时器仅在当前进程空间内有效
+- 定时器是纯异步实现。不能与阻塞 IO 的函数一起使用，否则定时器的执行时间会发生错乱
+
+定时器在执行的过程中可能存在一定误差
+
+###### 回调函数
+
+```php
+function callbackFunction(int $timer_id, [$mixed $param]);
+```
+
+- `$timer_id` 定时器的 ID，可用于 `swoole_timer_clear` 清除此定时器
+- `$params` 由 `swoole_timer_tick` 传入的第三个参数 $param, 此参数也为可选参数
+
+###### 定时器校正
+
+定时器回调函数的执行时间不影响下一次定时器执行的时间。
+
+比如，在 0.002s 时设置了 10ms 的 tick 定时器，第一次会在 0.012s 执行回调函数，如果回调函数执行了 5ms，下一次定时器仍然会在 0.022s 时触发，而不是 0.027s 。
+
+然而如果定时器回调函数的执行时间过于长，延申到了下一次定时器执行的时间。底层会进行时间校正，丢弃已过期的**欲定时执行**的行为，在下一时间间隔点进行回调。比如上面的例子中，0.012s 时的回调函数执行了 15ms， 本该在 0.022s 产生的回调，实际上直到 0.027s 时才返回。那么 0.022s 时本欲执行的行为，就被“丢弃”了。再到下一个间隔即 0.032s 继续执行回调。
+
+###### 协程模式
+
+在协程环境下，`swoole_timer_tick` 回调中会自动创建一个协程，可以直接使用协程相关 API，无需调用 `go` 创建协程。
+
+> 可设置 `enable_coroutine` 关闭自动创建协程
+
+###### sample code
+
+```php
+// 1
+swoole_timer_tick(1000, function() {
+    echo "test timer.\n";
+});
+// 2
+swoole_timer_tick(3000, function() {
+    echo "after 3000ms.\n";
+    swoole_timer_after(14000, function() {
+        echo "after 14000ms.\n";
+    });
+});
+```
+
+
+
 ### 5.2 swoole_timer_after
 
 ### 5.3 swoole_timer_clear
