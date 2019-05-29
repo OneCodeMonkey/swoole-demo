@@ -2664,6 +2664,39 @@ var_dump($timer);   // int(1)
 
 ### 6.3 Table
 
+Swoole\Table 是一个基于共享内存和锁实现的超高性能，并发数据结构。用于解决多进程/多线程数据共享和同步加锁问题。
+
+最新版本已移除 `lock` 和 `unlock` 方法，改用 `Swoole\Lock` 来实现数据同步
+
+请谨慎使用数组方式去读写 `swoole_table`, 建议使用文档中提供的 API 来进行操作，数组方式取出的 `swoole_table_row` 对象是一次性对象，请勿依赖其进行过多操作。
+
+###### swoole_table 的优势
+
+- 性能强，单线程每秒读写可达 `200万` 次
+- 引用代码无需加锁，`swoole_table` 内置行锁自旋锁，所有操作均是多线程 / 多进程安全。用户层完全不需要考虑数据同步问题。
+- 支持多进程，`swoole_table` 可用于多进程之间共享数据
+- 使用行锁，而不是全局锁，仅当2个进程在同一个 CPU 时间下并发读取同一条数据时才会发生 “抢锁” 现象。
+
+> `swoole_table` 不受 php 的memory_limit 控制
+>
+> `swoole_table` 在 1.7.5 以上可用
+
+###### 遍历Table
+
+swoole_table 类实现了迭代器和 Countable 接口，可以使用 foreach 遍历，使用count 计算当前行数。
+
+> 遍历Table 依赖 pcre，如果发现无法遍历 swoole_table，先查下有没安装 pcre-devel 扩展
+
+```php
+foreach($table as $row)
+{
+    var_dump($row);
+}
+echo count($table);
+```
+
+
+
 ### 6.4 Atomic
 
 ### 6.5 mmap
