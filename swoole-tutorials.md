@@ -2674,3 +2674,40 @@ var_dump($timer);   // int(1)
 
 ## 14. 高级特性
 
+### 14.1 swoole的实现
+
+swoole 使用 `C/C++11` 编写，不依赖其他第三方库。
+
+- swoole 并没使用 libevent，所以不依赖于 libevent扩展
+- swoole 并不依赖 php 的 stream / sockets / pcntl / posix / sysvmsg 等扩展
+
+###### socket 部分
+
+swoole 使用底层的 socket 系统调用。参加源码的 sys/socket.h
+
+###### IO 事件循环
+
+- 在linux 系统下使用 `epoll` , `MacOS / FreeBSD` 下使用 kqueue
+- task 进程没有事件循环，进程会循环阻塞读取管道
+
+> 很多人使用 `strace -p` 查看 swoole 主进程只能看到 poll 系统调用。正确的查看方法是 stace -f -p
+>
+> ###### 多进程 / 多线程
+>
+> - 多进程使用 `fork()` 系统调用
+> - 多线程使用 `pthread` 线程库
+>
+> ###### EventFd
+>
+> swoole 使用了 `eventfd` 作为线程 / 进程间消息通知的机制。
+>
+> ###### Signalfd
+>
+> swoole 中使用了 `signalfd` 来实现对信号的屏蔽和处理。可以有效地避免线程 / 进程被信号打断，系统调用 `restart` 的问题。在主进程中 `Reactor/AIO` 线程不会接收任何信号。
+
+### 14.2 Reactor线程
+
+### 14.3 Manager进程
+
+### 14.4 Worker进程
+
