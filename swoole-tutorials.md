@@ -2795,5 +2795,15 @@ swoole 的主进程在 Accept 新的连接后，会将这个连接分配给一�
 
 ### 14.3 Manager进程
 
+swoole 中 worker/task 进程都是由 Manager 进程 Fork 并管理的。
+
+- 子进程结束运行时，manager 进程负责回收此子进程，避免成为僵尸进程。并创建新的子进程
+- 服务器关闭时，manager 进程将发送信号给所有子进程，通知子进程关闭服务
+- 服务器reload 时，manager进程会逐个关闭或重启子进程
+
+为什么不是 master 进程呢，因为 master 进程是多线程的，不能安全地执行 fork 操作
+
 ### 14.4 Worker进程
+
+### 14.5 Reactor，Worker，TaskWorker的关系
 
