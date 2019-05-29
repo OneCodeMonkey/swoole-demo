@@ -2805,5 +2805,23 @@ swoole 中 worker/task 进程都是由 Manager 进程 Fork 并管理的。
 
 ### 14.4 Worker进程
 
+Swoole提供了完善的进程管理机制，当 worker 进程异常退出时，如果发生 php 的致命错误，被其他程序误杀，或达到 max_request 次数之后正常退出。主进程会重新拉起新的 worker 进程。worker 进程内可以像普通的 apache+php 或 php-fpm  中那样写逻辑，而不需要像 nodejs 那样写异步回调的程序。
+
+###### 主进程内的回调函数
+
+`onStart`, `onShutdown`, `onTimer`
+
+###### worker 进程内的回调函数
+
+`onWorkerStart`, `onWorkerStop`, `onConnect`, `onClose`, `onReceive`, `onFinish`
+
+###### task_worker 进程内的回调函数
+
+`onTask`, `onWorkerStart`
+
+###### 管理进程内的回调函数
+
+`onManagerStart`, `onManagerStop`
+
 ### 14.5 Reactor，Worker，TaskWorker的关系
 
