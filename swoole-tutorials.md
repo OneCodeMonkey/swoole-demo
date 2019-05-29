@@ -2707,6 +2707,17 @@ swoole 使用底层的 socket 系统调用。参加源码的 sys/socket.h
 
 ### 14.2 Reactor线程
 
+swoole 的主进程是一个多线程的程序。其中有一组很重要的线程，称之为 Reactor 线程。它是真正处理 TCP 连接，收发数据的线程。
+
+swoole 的主进程在 Accept 新的连接后，会将这个连接分配给一个固定的 Reactor 线程，并由这个线程负责监听此 socket。在 socket 可读时读取数据，并进行协议解析，将请求投递到 worker 进程。在 socket 可写时将数据发送给 TCP 客户端。
+
+> 分配计算的方式是 fd % serv-> reactor_num
+>
+> ###### TCP 和 UDP 的差异
+>
+> - TCP 客户端，worker 进程处理完请求后，调用 `$server->send` 会将数据发送给 `Reactor` 线程，由 `Reactor` 线程再发送给客户端
+> - UDP 客户端，worker 进程处理完请求后，调用 `$server->sendto` 直接发送给客户端，无需经过 `Reactor` 线程
+
 ### 14.3 Manager进程
 
 ### 14.4 Worker进程
