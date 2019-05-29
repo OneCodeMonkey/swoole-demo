@@ -2825,3 +2825,40 @@ Swoole提供了完善的进程管理机制，当 worker 进程异常退出时，
 
 ### 14.5 Reactor，Worker，TaskWorker的关系
 
+`Reactor`, `Worker`, `TaskWorker` 三者分别的职责是：
+
+###### Reactor线程
+
+- 负责维护客户端 tcp 连接，处理网络IO，处理协议，收发数据
+- 完全是异步非阻塞的模式
+- 全部为 C 代码，除 `start`/`shutdown` 事件回调以外，不执行任何 php 代码
+- 将 tcp 客户端发来的数据缓冲，拼接，拆分成完整的一个请求数据包
+- `Reactor` 以多线程的方式运行
+
+###### Worker 进程
+
+- 接收由 `Reactor` 线程投递的请求数据包，并执行 php 回调函数处理数据
+- 生成响应数据并发送给 `Reactor` 线程，由 `Reactor` 线程发送给 TCP 客户端
+- 可以是异步非阻塞模式，也可以是同步阻塞模式
+- `Worker` 以多进程的方式运行
+
+###### TaskWorker 进程
+
+- 接收由 `Worker` 进程通过 `swoole_server->task/taskwait` 方法投递的任务
+- 处理任务，并将结果数据返回给`Worker` 进程处理（`swoole_server->finish`）
+- 完全是**同步阻塞**模式
+- `TaskWorker` 以多进程的方式运行
+
+###### 关系
+
+可以理解为 `Reactor` 就是 `nginx` , `Worker` 是 `php-fpm`, `Reactor` 线程异步并行地处理网络请求，然后再转发给 `Worker` 进程中处理。`Reactor` 和 `Worker` 间通过 `Unix Socket` 通信。
+
+在 `php-fpm` 的应用中，经常会将一个任务异步投递到 `Redis` 等队列中，并在后台启动一些 `php` 进程异步地处理这些任务。`Swoole` 提供的 `TaskWorker` 是一套完整的方案，将任务的投递，队列，php任务处理进程管理合为一体。通过底层提供的api 可以简便地实现异步任务的处理。另外 `TaskWorker` 还可以在任务执行完成后再返回一个结果到 `Worker`.
+
+`Swoole` 的 `Reactor`, `Worker`, `TaskWorker` 之间可以紧密地结合起来，提供更高级的使用方式。
+
+一个更通俗的比喻，假设 `Server` 是一个工厂，那么 `Reactor` 就是销售，接收客户订单。而 `Worker` 是工人，当销售接收到订单后，`Worker` 去生产出客户要的东西。而 `TaskWorker` 可以理解为行政人员，可以帮助 `Worker` 干些杂事，让 `Worker` 专心工作。
+
+> 底层会为 `Worker` 进程，`TaskWorker` 进程分配一个唯一的 ID
+>
+> 不同的 `Worker` 和 `TaskWorker` 进程之间可以通过 `sendMessage` 接口来通信
