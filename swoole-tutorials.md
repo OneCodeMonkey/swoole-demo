@@ -2699,6 +2699,34 @@ echo count($table);
 
 ### 6.4 Atomic
 
+Swoole\Atomic 是 swoole 扩展提供的原子技术操作类，可以方便整数的无锁原子增减。
+
+- Swoole\Atomic 使用共享内存，可以在不同的进程之间操作计数
+- Swoole\Atomic 基于 gcc 提供的CPU 原子指令，无需加锁
+- Swoole\Atomic 在服务器程序中必须在 `swoole_server->start` 前创建才能在 Worker 进程中使用
+- Swoole\Atomic 默认使用32位无符号整型，如要使用64位无符号整型，可以改用 Swoolen\Atomic\Long
+
+注意：请勿在 `onReceive` 等回调函数中创建原子数，否则底层的 `GlobalMemory` 内存会持续增长，造成内存泄漏
+
+###### 64位长整型
+
+swoole 1.9.20增加了对64位有符号长整型原子计数的支持。使用 `new Swoole\Atomic\Long` 来创建。
+
+- `Swoole\Atomic\Long` 不支持 `wait` 和 `wakeup` 方法
+
+###### sample code
+
+```php
+$atomic = new swoole_atomic(123);
+echo $atomic->add(12) . "\n";
+echo $atomic->sub(11) . "\n";
+echo $atomic->cmpset(122, 999) . "\n";
+echo $atomic->cmpset(124, 999) . "\n";
+echo $atomic->get() . "\n";
+```
+
+
+
 ### 6.5 mmap
 
 ### 6.6 Channel
