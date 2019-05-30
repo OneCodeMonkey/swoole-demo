@@ -2747,6 +2747,17 @@ echo $atomic->get() . "\n";
 
 ## 13. Event
 
+ 除了异步 `server` 和 `client` 库之外，`swoole` 扩展还提供了直接操作底层 `epoll`/`kqueue` 事件循环的接口。可将其他扩展创建的 `socket` ，php代码中 `stream` / `socket` 扩展创建的 `socket` 等加入到 `Swoole` 的 `EventLoop` 中。
+
+###### 事件优先级
+
+1. 通过 `Process::signal` 设置的信号处理回调函数
+2. 通过 `Event::defer` 设置的延迟执行函数
+3. 通过 `Timer::tick` 和 `Timer::after` 设置的定时器回调
+4. 通过 `Event::cycle` 设置的周期回调函数
+
+
+
 ## 14. 高级特性
 
 ### 14.1 swoole的实现
