@@ -2826,6 +2826,20 @@ function Redis\Server::format(int $type, mixed $value = null);
 
 - `$type` 表示数据类型， `NIL` 类型不需要传入 `$value`, `ERROR` 和 `STATUS` 类型 `$value` 可选，`INT`, `STRING`, `SET`， `MAP` 必选
 
+###### 用到的常量
+
+格式化参数常量：
+
+（主要用于 `format` 函数打包 redis 响应数据）
+
+- Server::NIL 返回 `nil` 数据
+- Server::ERROR 返回错误码
+- Server::STATUS 返回状态
+- Server::INT 返回整数， `format` 必须传入参数值，类型必须为整数
+- Server::STRING 返回字符串， `format` 必须传入参数值，类型必须为整数
+- Server::SET 返回列表，`format` 必须传入参数值，类型必须为数组
+- Server::MAP 返回 Map, `format` 必须传入参数值，类型必须为关联索引数组
+
 ## 10. Process
 
 ## 11. Process\Pool
