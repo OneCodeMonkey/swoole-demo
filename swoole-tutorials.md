@@ -2771,6 +2771,51 @@ $serv->setHandler('set', function($fd. $data) use ($serv) {
 $serv->start();
 ```
 
+###### Redis\Server::setHandler
+
+`Swoole\Redis\Server` 继承自 `Swoole\Server`, 可以使用父类提供的所有方法。
+
+`Redis\Server` 不需要设置 `onReceive` 回调。只需使用 `setHandler` 方法设置对应命令的处理函数，收到未支持的命令后自动向客户端发送 `ERROR` 响应，消息为 `ERR unknown command '$command'`
+
+setHandler : 设置Redis 命令字的处理器。
+
+```php
+function Redis\Server->setHandler(string $command, callable $callback);
+```
+
+- `$command` 命令的名称
+- `$callback` 命令的处理函数，回调函数返回字符串类型时会自动发送给客户端
+- `$callback` 返回的数据必须为 `Redis` 格式，可使用 `format` 静态方法进行打包 
+
+sample code：
+
+```php
+use Swoole\Redis\Server;
+
+$server = new Server('127.0.0.1', 9501);
+
+// 同步模式
+$server->setHandler('Set', function($fd, $data) use ($server) {
+    $server->array($data[0], $data[1]);
+    return Server::format(Server::INT, 1);
+});
+
+// 异步模式
+$server->setHandler('Get', function ($fd, $data) use ($server) {
+    $db->query($sql, function ($db, $result) use ($fd) {
+        $server->send($fd, Server::format(Server::LIST, $result));
+    });
+});
+
+$server->start();
+```
+
+客户端实例：
+
+```shell
+redis-cli -h 127.0.0.1 -p 9501 set name rango
+```
+
 
 
 ## 10. Process
