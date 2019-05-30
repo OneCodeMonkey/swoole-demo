@@ -2816,7 +2816,15 @@ $server->start();
 redis-cli -h 127.0.0.1 -p 9501 set name rango
 ```
 
+###### Redis\Server::format
 
+格式化命令响应数据。
+
+```php
+function Redis\Server::format(int $type, mixed $value = null);
+```
+
+- `$type` 表示数据类型， `NIL` 类型不需要传入 `$value`, `ERROR` 和 `STATUS` 类型 `$value` 可选，`INT`, `STRING`, `SET`， `MAP` 必选
 
 ## 10. Process
 
