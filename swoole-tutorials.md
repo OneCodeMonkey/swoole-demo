@@ -2778,6 +2778,59 @@ echo $atomic->get() . "\n";
 
 ## 7. Http\Server
 
+> `Http\Server` 对 `Http` 协议的支持不完整，建议仅作为应用服务器，并且在前端增加 `Nginx` 作为代理
+
+swoole包含了内置 http 服务器，通过同步的代码即可造出异步非阻塞多进程的 http 服务器
+
+```php
+$http = new Swoole\Http\Server('127.0.0.1', 9501);
+$http->on('request', function($request, $response) {
+    $response->end("<h1>Hello Swoole. #" . rand(1000, 9999) . "<h1>");
+});
+$http->start();
+```
+
+###### 使用 http2 协议
+
+- 需要依赖 `nghttp2` 库，下载 nghttp2 后编译安装
+- 使用 SSL 下的 `Http2` 协议必须安装 `openssl` ，且需要高版本 `openssl` 必须支持 `TLS1.2`，`ALPN`, `NPN`
+- 使用HTTP2不一定要开启SSL
+
+```shell
+./configure --enable-openssl --enable-http2
+```
+
+设置 http 服务器的 `open_http2_protocol` 为 `true`
+
+```php
+$serv = new Swoole\Http\Server("127.0.0.1", SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+$serv->set([
+    'ssl_cert_file' => $ssl_dir . '/ssl.crt',
+    'ssl_key_file' => $ssl_dir . '/ssl.key',
+    'open_http2_protocol' => true,
+]);
+```
+
+###### nginx+swoole配置
+
+```ini
+server {
+    root /data/wwwroot/;
+    server_name local.swoole.com;
+    
+    location / {
+            proxy_http_version 1.1;
+            proxy_set_header Connection "keep-alive";
+            proxt_set_header X-Real-IP $remote_addr;
+        if (!-e $request_filename) {
+            proxy_pass http://127.0.0.1:9501；
+        }
+    }
+}
+```
+
+> 通过读取 `$request->header['x-real-ip']` 来获取客户端的真实IP
+
 ## 8. WebSocket\Server
 
 ## 9. Redis\Server
