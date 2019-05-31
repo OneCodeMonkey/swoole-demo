@@ -2833,6 +2833,97 @@ server {
 
 ## 8. WebSocket\Server
 
+swoole内置了 `WebSocket` 服务器支持，通过几行 php 代码就可以写出一个异步非阻塞多进程的 `WebSocket` 服务器。
+
+```php
+$server = new Swoole\WebSocket\Server('0.0.0.0', 9501);
+
+$server->on('open', function(Swoole\WebSocket\Server $server, $request) {
+    echo "Server: handshare success with fd{$request->fd}\n";
+});
+
+$server->on('message', function(Swoole\WebSocket\Server $server, $frame) {
+    echo "receive from {$frame->fd}:{$frame->data},opcode:{$frame->opcode},fin:{$frame->finish}\n";
+    $server->push($frame->fd, "this is server");
+});
+
+$server->on('close', function($ser, $fd) {
+    echo "client {$fd} closed\n";
+});
+
+$server->start();
+```
+
+###### onRequest回调
+
+`WebSocket\Server` 继承自 `Http\Server`
+
+- 设置了 `onRequest` 回调，`WebSocket\Server` 也可以同时作为 `http` 服务器
+- 未设置 `onRequest` 回调， `WebSocket\Server` 收到http请求后会返回 400 错误
+- 如果想通过接收 http 触发所有 `websocket` 的推送，需要注意作用域的问题，面向过程请使用 `global` 对 `WebSocket\Server` 进行引用，面向对象可以把 `WebSocket\Server` 设置成一个成员属性
+
+**1.面向过程的写法**
+
+```php
+$server = new Swoole\WebSocket\Server('0.0.0.0', 9501);
+$server->on('open', function(Swoole\WebSocket\Server $server, $request) {
+    echo "Server: handshake success with fd{$request->fd}\n";
+});
+$server->on('message', function(Swoole\WebSocket\Server $server, $frame) {
+    echo "receive from {$frame->fd}:{$frame->data},opcode:{$frame->opcode},fin:{$frame->finish}\n";
+    $server->push($frame->fd, "this is server");
+});
+$server->on('close', function($ser, $fd) {
+    echo "client {$fd} closed\n";
+});
+$server->on('request', function(Swoole\Http\Request $request, Swoole\Http\Response $response) {
+    global $server; // 调用外部的 server
+    // $server->connections 遍历所有的 websocket 连接用户的 fd，给所有用户推送
+    foreach($server->connections as $fd) {
+        $server->push($fd, $request->get['message']);
+    }
+});
+$server->start();
+```
+
+**2.面向对象的写法**
+
+```php
+class WebSocketTest {
+    public $server;
+    public function __construct() {
+        $this->server = new Swoole\WebSocke\Server('0.0.0.0', 9501);
+        $this->server->on('open', function(swoole_websocket_server $server, $request) {
+            echo "Server: handshake success with fd{$request->fd}\n";
+        });
+        $this->server->on('message', function(Swoole\WebSocket\Server $server, $frame) {
+            echo "receive from {$frame->fd}:{$frame->data},opcode:{$frame->opcode},fin:{$frame->finish}\n";
+            $server->push($frame->fd, "this is server");
+        });
+        $this->server->on('close', function($ser, $fd) {
+            echo "client {$fd} closed\n";
+        });
+        $this->server->on('request', function($request, $response) {
+            // 接收 http 请求从 get 获取message参数的值，给用户推送
+            // $this->server->connections 遍历所有 websocket 连接用户的 fd, 给所有用户推送
+            foreach($this->server->connections as $fd) {
+                $this->server->push($fd, $request->get['message']);
+            }
+        });
+        $this->server->start();
+    }
+}
+new WebsocketTest();
+```
+
+###### 客户端
+
+- `chrome`/`Firefox` / 高版本`ie`/`Safari` 等浏览器内置了 JS 的 websocket 客户端
+- 微信小程序开发框架内置了 websocket 客户端
+- 异步的 php 程序中可以使用 `Swoole\Http\Client` 作为 websocket 客户端
+- apache/php-fpm 或其他同步阻塞的 php程序中可以使用  `swoole/framework` 提供的同步WebSocket 客户端
+- 非 websocket 客户端不能与 `SebSocket` 服务器通信
+
 ## 9. Redis\Server
 
 `swoole1.8.14`开始增加了一个兼容 `Redis` 服务端协议的 server 框架，可以基于此框架实现 `Redis` 协议的服务器程序。`Swoole\Redis\Server` 继承自 `Swoole\Server` ，可调用父类提供的所有方法。
