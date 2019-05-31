@@ -1089,6 +1089,26 @@ $server->on('Request', function($request, $response) use ($atomic) {
 
 ### 2.7 高级特性
 
+#### 2.7.5 TCP-Keepalive 死连接检测
+
+在tcp中有一个 `keep-Alive` 机制可以检测死连接，应用层如果对死连接周期不敏感或没有实现心跳机制，可以用操作系统提供的 `keepalive` 机制来踢掉死连接。在 `Server::set` 配置中增加 `open_tcp_keepalive >= 1` 表示启用 `tcp keepalive` 。另外有三个参数可以对 `keepAlive` 进行微调。
+
+`keep-Alive` 机制不会强制切断连接，如果连接存在但是一直不发生数据交互，那么 `keep-Alive` 不会去切断连接。而应用层实现的心跳检测 `heartbeat_check` 即使连接存在，但在不产生数据交互的情况下仍会强制切断连接。
+
+> 推荐使用 `heartbeat_check` 实现心跳检测
+
+###### tcp_keepidle
+
+连接在 n 秒内没有任何数据请求，则将开始对此连接进行探测。
+
+###### tcp_keepcount
+
+探测的次数，超过次数后将 `close` 此连接
+
+###### tcp_keepinterval
+
+探测的时间间隔，单位为秒
+
 ### 2.8 压力测试
 
 ## 3. Coroutine
