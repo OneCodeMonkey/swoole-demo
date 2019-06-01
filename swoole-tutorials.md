@@ -3499,3 +3499,44 @@ Swoole提供了完善的进程管理机制，当 worker 进程异常退出时，
 > 底层会为 `Worker` 进程，`TaskWorker` 进程分配一个唯一的 ID
 >
 > 不同的 `Worker` 和 `TaskWorker` 进程之间可以通过 `sendMessage` 接口来通信
+
+## 附录
+
+### swoole预定义常量
+
+| 常量名                       | 作用                                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| SWOOLE_VERSION               | 版本号                                                       |
+| SWOOLE_BASE                  | 使用base模式，业务代码在Reactor进程中直接执行（swoole_server::__construct中） |
+| SWOOLE_PROCESS               | 使用进程模式，业务代码在 Worker 进程中执行（swoole_server::__construct中） |
+| SWOOLE_SOCK_TCP              | 创建tcp socket（swoole_client::__construct）                 |
+| SWOOLE_SOCK_TCP6             | 创建tcp ipv6 socket （swoole_client::__construct）           |
+| SWOOLE_SOCK_UDP              | 创建udp socket（swoole_client::__construct）                 |
+| SWOOLE_SOCK_UDP6             | 创建udp ipv6 socket （swoole_client::__construct）           |
+| SWOOLE_SOCK_UNIX_DGRAM       | 创建 unix dgram socket （swoole_client::__construct）        |
+| SWOOLE_SOCK_UNIX_STREAM      | 创建 unix stream socket （swoole_client::__construct）       |
+| SWOOLE_SOCK_SYNC             | 同步客户端（swoole_client::__construct）                     |
+| SWOOLE_SOCK_ASYNC            | 异步客户端（swoole_client::__construct）                     |
+| SWOOLE_FILELOCK              | 创建文件锁（swoole_lock::__construct中）                     |
+| SWOOLE_MUTEX                 | 创建互斥锁（swoole_lock::__construct中）                     |
+| SWOOLE_RWLOCK                | 创建读写锁（swoole_lock::__construct中）                     |
+| SWOOLE_SPINLOCK              | 创建自旋锁（swoole_lock::__construct中）                     |
+| SWOOLE_SEM                   | 创建信号量（swoole_lock::__construct中）                     |
+| SWOOLE_SSLv3_METHOD          | SSL 加密方法中用到                                           |
+| SWOOLE_SSLv3_SERVER_METHOD   | SSL 加密方法中用到                                           |
+| SWOOLE_SSLv3_CLIENT_METHOD   | SSL 加密方法中用到                                           |
+| SWOOLE_SSLv23_METHOD         | **默认采用的加密方式**                                       |
+| SWOOLE_SSLv23_SERVER_METHOD  | SSL 加密方法中用到                                           |
+| SWOOLE_SSLv23_CLIENT_METHOD  | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_METHOD          | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_SERVER_METHOD   | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_CLIENT_METHOD   | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_1_METHOD        | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_1_SERVER_METHOD | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_1_CLIENT_METHOD | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_2_METHOD        | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_2_SERVER_METHOD | SSL 加密方法中用到                                           |
+| SWOOLE_TLSv1_2_CLIENT_METHOD | SSL 加密方法中用到                                           |
+| SWOOLE_DTLSv1_METHOD         | SSL 加密方法中用到                                           |
+| SWOOLE_DTLSv1_SERVER_METHOD  | SSL 加密方法中用到                                           |
+| SWOOLE_DTLSv1_CLIENT_METHOD  | SSL 加密方法中用到                                           |
