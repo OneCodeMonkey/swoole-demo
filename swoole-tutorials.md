@@ -3194,6 +3194,58 @@ $pool->start();
 
 ## 12. Client
 
+`client` 提供了 `TCP/UDP` `socket` 的客户端的封装代码，使用时仅需 `new Swoole\Client` 即可。
+
+###### 优势
+
+- `stream` 函数存在超时设置的陷阱和 `Bug`, 一旦没处理好会导致 Server 端长时间阻塞。
+- `stream` 函数的 fread 默认最大长度 8192 限制，无法支持 UDP 的大包
+- `Client` 支持 `waitall`，在有确定包长度时可一次取完，不必循环去读
+- `Client` 支持 `UDP connect`, 解决了 UDP 串包问题
+- `Client` 是纯 C 编写。专门处理 `socket` ，`stream` 的复杂函数，性能更好。
+- `Client` 支持长连接
+
+除了普通的异步阻塞 + select 的使用方法外，`Client` 还支持异步非阻塞回调。
+
+###### 同步阻塞客户端
+
+```php
+$client = new swoole_client(SWOOLE_SOCK_TCP);
+if(!$client->connect('127.0.0.1', 9501, -1)) {
+    exit("Connect failed. Error: {$client->errCode}\n");
+}
+$client->send("hello world\n");
+echo $client->recv();
+$client->close();
+```
+
+> `php-fpm/apache` 环境下只能使用同步客户端
+>
+> apache环境下仅支持 prefork 多进程模式。不支持 prework 多线程
+
+###### 异步非阻塞客户端
+
+```php
+$client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+$client->on('connect', function(swoole_client $cli) {
+    $cli->send("GET /HTTP/1.1\r\n\r\n");
+});
+$client->on('receive', function(swoole_client $cli, $data) {
+    echo "Receive: $data";
+    $cli->send(str_repeat('A', 100) . "\n");
+    sleep(1);
+});
+$client->on('error', function(swoole_client $cli) {
+    echo "error\n";
+});
+$client->on('close', function(swoole_client $cli) {
+    echo "connect close\n";
+});
+$client->connect('127.0.0.1', 9501);
+```
+
+> 异步客户端只能在 cli 下使用
+
 ## 13. Event
 
  除了异步 `server` 和 `client` 库之外，`swoole` 扩展还提供了直接操作底层 `epoll`/`kqueue` 事件循环的接口。可将其他扩展创建的 `socket` ，php代码中 `stream` / `socket` 扩展创建的 `socket` 等加入到 `Swoole` 的 `EventLoop` 中。
