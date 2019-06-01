@@ -3259,17 +3259,117 @@ $client->connect('127.0.0.1', 9501);
 $client = new Swoole\Client(SWOOLE_TCP|SWOOLE_ASYNC|SWOOLE_SSL);
 ```
 
+#### 12.1.1 construct
 
+```php
+swoole_client->__construct(int $sock_type, int $is_sync = SWOOLE_SOCK_SYNC, string $key);
+```
+
+可以使用 swoole 提供的宏来指定类型，参考本 markdown 文档附录的 `swoole常量定义`
+
+- `$sock_type` 表明 `socket` 的类型，如 `TCP`/`UDP`
+- 使用 `$sock_type`/`SWOOLE_SSL` 可启用SSL加密
+- `$is_sync` 表示同步阻塞还是异步非阻塞，默认为同步阻塞
+- `$key` 用于长连接的 `key`，默认使用 IP ：端口 作为 `key`，相同 `key` 的连接会被复用
+
+###### 在php-fpm / apache 中创建长连接
+
+```php
+$cli = new swoole_client(SWOOLE_TCP|SWOOLE_KEEP);
+```
+
+加入 `SWOOLE_KEEP` 标志后，创建的 TCP 连接在PHP请求结束或调用 `$cli->close` 时不会关闭，下一次执行 connect 调用时会复用上一次创建的连接。长连接保存的方式默认是以 ServerHost : ServerPort 为 key 的，可以在第三个参数内指定 key。
+
+- `SWOOLE_KEEP`只适用于同步客户端
+
+> > swoole_client 在 unset 时会自动调用 close 方法关闭 socket
+>
+> 异步模式 unset 时会自动关闭 socket 并从 epoll 事件轮询中移除
+
+###### 在 swoole_server 中使用 swoole_client 
+
+- 必须在事件回调函数中使用 `swoole_client `，不能在 `swoole_server->start` 前就创建。
+- `swoole_server` 可以用任何语言编写的 socket client 连接，同样 `swoole_client` 也可以去连接任何语言编写的 socket server
+
+#### 12.1.2 set
+
+#### 12.1.3 on
+
+#### 12.1.4 connect
+
+#### 12.1.5 isConnected
+
+#### 12.1.6 getSocket
+
+#### 12.1.7 getSockName
+
+#### 12.1.8 getPeerName
+
+#### 12.1.9 getPeerCert
+
+#### 12.1.10 send
+
+#### 12.1.11 sendto
+
+#### 12.1.12 sendfile
+
+#### 12.1.13 recv
+
+#### 12.1.14 close
+
+#### 12.1.15 sleep
+
+#### 12.1.16 wakeup
+
+#### 12.1.17 enableSSL
 
 ### 12.2 回调函数
 
+#### 12.2.1 onConnect
+
+#### 12.2.2 onError
+
+#### 12.2.3 onReceive
+
+#### 12.2.4 onClose
+
+#### 12.2.5 onBufferFull
+
+#### 12.2.6 onBufferEmpty
+
 ### 12.3 属性列表
 
+#### 12.3.1 errCode
+
+#### 12.3.2 sock
+
+#### 12.3.3 reuse
+
 ### 12.4 并行
+
+#### 12.4.1 swoole_client_select
+
+#### 12.4.2 TCP客户端异步连接
+
+#### 12.4.3 SWOOLE_KEEP参数创建 TCP 长连接
 
 ### 12.5 常量
 
 ### 12.6 配置选项
+
+#### 12.6.1 ssl_verify_peer
+
+#### 12.6.2 ssl_host_name
+
+#### 12.6.3 ssl_cafile
+
+#### 12.6.4 ssl_capath
+
+#### 12.6.5 package_length_func
+
+#### 12.6.6 http_proxy_host
+
+### 12.7 常见问题
 
 ## 13. Event
 
