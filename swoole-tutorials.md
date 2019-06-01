@@ -1073,6 +1073,39 @@ $server->on('Request', function($request, $response) use ($atomic) {
 
 注：Swoole\Atomic 是建立在共享内存之上的，使用 add 方法加1时，在其他工作进程里也有效。
 
+### 1.5 相关linux内核参数调整
+
+###### ulimit 设置
+
+ulimit -n 要调整为 100000 甚至更大。命令行执行 ulimit -n 100000 即可修改。如果不能修改，需要设置 /etc/security/limits.conf, 加入
+
+```ini
+* soft nofile 262140
+* hard nofile 262140
+root soft nofile 262149
+root hard nofile 262140
+* soft core unlimited
+* hard core unlimited
+root soft core unlimited
+root hard core unlimited
+```
+
+注意：修改 `limits.conf` 文件后，需要重启系统才能生效
+
+###### 内核设置
+
+linux 操作系统修改内核参数的方式有三种：
+
+1. 方式1：修改 `/etc/sysctl.conf` 文件，加入配置选项，格式为 `key` = `value` 形式，修改保存后调用 `sysctl -p` 加载新配置
+2. 方式2：使用 `sysctl` 命令临时修改，如：`sysctl -w net.ipv4.tcp_mem = "379008 505344 758016"`
+3. 方式3：直接修改 `/proc/sys/` 目录下的文件，如：`echo "379008 505344 758016"` 
+
+> 第一种方式要在操作系统重启后才能生效。第二和第三种方法重启后反而会失效
+
+
+
+
+
 ## 2. Server
 
 ### 2.1 函数列表
