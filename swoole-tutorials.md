@@ -3246,6 +3246,31 @@ $client->connect('127.0.0.1', 9501);
 
 > 异步客户端只能在 cli 下使用
 
+### 12.1 方法列表
+
+###### SSL/TLS
+
+- 依赖 `openssl` 库，需要在编译 swoole 时增加 `enable-openssl` 或 `with-openssl-dir`
+- 必须在定义 `Client` 时增加 `SWOOLE_SSL`
+
+> 低于 1.9.5 的版本在设置 `ssl_key_file` 后会自动启用 SSL
+
+```php
+$client = new Swoole\Client(SWOOLE_TCP|SWOOLE_ASYNC|SWOOLE_SSL);
+```
+
+
+
+### 12.2 回调函数
+
+### 12.3 属性列表
+
+### 12.4 并行
+
+### 12.5 常量
+
+### 12.6 配置选项
+
 ## 13. Event
 
  除了异步 `server` 和 `client` 库之外，`swoole` 扩展还提供了直接操作底层 `epoll`/`kqueue` 事件循环的接口。可将其他扩展创建的 `socket` ，php代码中 `stream` / `socket` 扩展创建的 `socket` 等加入到 `Swoole` 的 `EventLoop` 中。
