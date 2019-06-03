@@ -3593,9 +3593,24 @@ Swoole提供了完善的进程管理机制，当 worker 进程异常退出时，
 
 一个更通俗的比喻，假设 `Server` 是一个工厂，那么 `Reactor` 就是销售，接收客户订单。而 `Worker` 是工人，当销售接收到订单后，`Worker` 去生产出客户要的东西。而 `TaskWorker` 可以理解为行政人员，可以帮助 `Worker` 干些杂事，让 `Worker` 专心工作。
 
-> 底层会为 `Worker` 进程，`TaskWorker` 进程分配一个唯一的 ID
->
-> 不同的 `Worker` 和 `TaskWorker` 进程之间可以通过 `sendMessage` 接口来通信
+底层会为 `Worker` 进程，`TaskWorker` 进程分配一个唯一的 ID
+
+不同的 `Worker` 和 `TaskWorker` 进程之间可以通过 `sendMessage` 接口来通信
+
+### 14.6 Task/Finish 特性的使用
+
+task模块用来做一些异步的慢速任务，比如 webim 中发广播，发送邮件等。
+
+- task进程必须是同步阻塞的
+- task进程支持定时器
+
+nodejs 假如由10万个连接，要发广播时会循环10万次，这时候程序不能做任何事情，不能接收新的连接，也不能收包和发包。
+
+但是swoole不同，任务交给task进程之后，worker 进程可以继续处理新的数据请求。任务完成后会异步地通知 worker 进程告诉它此任务已经完成。
+
+当然task模块的作用不仅限于此，实现php的数据库连接池，异步队列等，还需要进一步挖掘。
+
+
 
 ## 附录
 
