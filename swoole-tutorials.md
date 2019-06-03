@@ -3612,6 +3612,22 @@ nodejs 假如由10万个连接，要发广播时会循环10万次，这时候程
 
 
 
+### 14.7 在php-fpm 或 apache 中使用 swoole
+
+swoole 中绝大部分的模块只能用于 cli 环境，只有同步阻塞的 `swoole_client` 可以用于 `php-fpm` 和 `apache` 环境
+
+###### 同步swoole_client
+
+```php
+$client = new swoole_client(SWOOLE_SOCK_TCP);	// 同步阻塞
+$client->connect('127.0.0.1', 9501) or die("connect failed\n");
+$client->send(str_repeat('A', 600));
+$data = $client->recv(700, 0) or die("recv failed\n");
+echo "recv: " . $data . "\n";
+```
+
+
+
 ## 附录
 
 ### swoole预定义常量
