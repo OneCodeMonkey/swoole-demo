@@ -3628,6 +3628,18 @@ echo "recv: " . $data . "\n";
 
 
 
+### 14.8 swoole选择异步还是同步
+
+swoole不仅支持异步，还支持同步。什么情况下用同步什么情况下用异步，我们可以这样判断：
+
+我们不赞成用异步回调 的方式去做功能开发，传统的php同步方式实现功能和逻辑是最简单的，也是最佳的方案。像nodejs这样到处 callback，只会牺牲可维护性和开发效率。
+
+但有些时候很适合用异步，如FTP工具，聊天服务器，smtp，代理服务器等。此类场景均已通信和读写磁盘为主，功能和业务逻辑其次的业务场景。
+
+“php的扩展函数API 全是同步的”，这个说法不对。实际上同步阻塞的地方主要是网络调用，文件读写。例如 mysql_query 需要与 mysql 数据库服务器同i性能，curl 需要联网，file_get_contents 需要读取文件，以及其他 `fopen` / `fwrite` / `fread` / `fgets` / `fputs` 这些都是同步阻塞的API，除此紫外php 的 `array` / `string` / `mbstring` 等函数是非阻塞的。
+
+swoole 提供了异步的socket 客户端，异步的mysql, 而且提供了异步文件读写，异步DNS 查询的功能。另外还提供了 task/finish 的API，完全可以解决阻塞 IO 问题。
+
 ## 附录
 
 ### swoole预定义常量
