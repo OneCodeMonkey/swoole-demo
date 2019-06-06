@@ -3674,6 +3674,56 @@ one req use(ms):	0.015  //单个请求的平均时长，此结果目前不准确
 - 压测不要使用 `--enable-debug` 和 `--enable-swoole-debug` 参数的版本
 - 压测的服务器程序中不要使用 `echo` 打印内容到屏幕，否则会严重拉低测试分值
 
+### 14.10 MySQL连接池，异步，短线重连
+
+###### MySQL长连接
+
+MySQL短连接每次请求操作数据库都要建立与MySQL服务器建立TCP连接，这是需要时间开销的。TCP连接需要三次网络通信，这样就增加了一定的延时和额外IO开销。请求结束后关闭 MySQL 连接，还会发生3-4次网络通信。
+
+> close操作不会增加响应的延时，原因是close后是由操作系统自动进行通信的，应用程序感知不到。
+
+长连接可以避免每次请求都创建连接的开销，节省了时间和IO消耗，提升php程序的性能。
+
+###### 断线重连
+
+在 cli 环境下，php程序需要长时间运行，客户端和MySQL服务器之间的TCP连接是不稳定的。
+
+- MySQL-server 会在一定时间内自动切断连接
+- php程序遇到空闲期时，长时间没有mysql查询，mysql-server 也会自动切断连接来节省资源
+- 其他情况，在MySQL服务器中执行 kill process 杀掉某个连接，MySQL服务器可能会重启
+
+此时php中的MySQL连接就无效了。
+
+### 14.11 php中哪些函数是同步阻塞的
+
+###### 同步阻塞函数
+
+- mysql，mysqli，pdo以及其他DB操作类函数
+- sleep，usleep
+- curl
+- stream，socket扩展的函数
+- swoole_client 同步模式
+- memcache，redis扩展函数
+- file_get_contents/fread 等文件读取函数
+- swoole_server->taskwait
+- swoole_server->sendwait
+
+> swoole_server的php代码中有上述函数，server就是同步阻塞的
+>
+> 代码中没有异步服务器
+
+###### 异步非阻塞函数
+
+- swoole_client 异步模式
+- mysql-async 库
+- redis-async 库
+- swoole_timer_tick / swoole_timer_after
+- swoole_event 及相关event函数
+- swoole_table / swoole_atomic / swoole_buffer
+- swoole_server->task / finish 函数
+
+
+
 ## 附录
 
 ### swoole预定义常量
