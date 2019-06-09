@@ -20,3 +20,27 @@ Swoole 最终设计目的是要做**高性能网络通讯引擎**， Swoole 1.x 
 
 更符合人类思维习惯的方式是：同步的代码，运行出异步非阻塞的效果。所以 Swoole 很早就开始研究如何达到这个目的。
 
+最初的协程版本是基于PHP生成器Generators\Yield的方式实现的，可以参考PHP大神Nikita的早期博客的关于[协程](https://nikic.github.io/2012/12/22/Cooperative-multitasking-using-coroutines-in-PHP.html)介绍。PHP和Swoole的事件驱动的结合可以参考腾讯出团队开源的[TSF](https://github.com/Tencent/tsf)框架，我们也在很多生产项目中使用了该框架，确实让大家感受到了，以同步编程的方式写异步代码的快感，然而，现实总是很残酷，这种方式有几个致命的缺点：
+
+- 所有主动让出的逻辑都需要yield关键字。这会给程序员带来极大的概率犯错，导致大家对协程的理解转移到了对Generators语法的原理的理解。
+- 由于语法无法兼容老的项目，改造老的项目工程复杂度巨大，成本太高。
+
+这样使得无论新老项目，使用都无法得心应手。
+
+### Swoole2.x
+
+   2.x之后的协程都是基于内核原生的协程，无需yield关键字。2.0的版本是一个非常重要的里程碑，实现了php的栈管理，深入zend内核在协程创建，切换以及结束的时候操作PHP栈。在Swoole的文档中也介绍了很多关于每个版本实现的细节，我们这篇文章只对每个版本的协程驱动技术做简单介绍。**原生协程都有对php栈的管理，后续我们会单独拿一片文章来深入分析PHP栈的管理和切换。**
+
+   2.x主要使用了setjmp/longjmp的方式实现协程，很多C项目主要采用这种方式实现try-catch-finally，大家也可以参考Zend内核的用法。setjmp的首次调用返回值是0，longjmp跳转时，setjmp的返回值是传给longjmp的value。 setjmp/longjmp由于只有控制流跳转的能力。虽然可以还原PC和栈指针，但是无法还原栈帧，因此会出现很多问题。比如longjmp的时候，setjmp的作用域已经退出，当时的栈帧已经销毁。这时就会出现未定义行为。假设有这样一个调用链：
+
+> func0() -> func1() -> ... -> funcN()
+
+只有在func{i}()中setjmp，在func{i+k}()中longjmp的情况下，程序的行为才是可预期的。
+
+### Swoole3.x
+
+3.x是生命周期很短的一个版本，主要借鉴了[fiber-ext](https://github.com/fiberphp/fiber-ext)项目，使用了PHP7的VM interrupts机制，该机制可以在vm中设置标记位，在执行一些指令的时候（例如：跳转和函数调用等）检查标记位，如果命中就可以执行相应的hook函数来切换vm的栈，进而实现协程。
+
+\####Swoole4.x 4.x协程我们放在最后。
+
+协程之旅前篇结束，下一篇文章我们将深入Zend分析Swoole原生协程PHP部分的实现。
