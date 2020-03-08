@@ -14,7 +14,7 @@ $http->on('request', function ($request, $response) {
     if (file_exists($filePath)) {
         $fout = fopen($filePath, "r");
         while (!feof($fout)) {
-            $line = fgets($fout);
+            $line = trim(fgets($fout), "\r\n");
             if (!empty($line)) {
                 $messageLists .= "<p style='color: darkblue';>>>>{username}:&nbsp;" . $line . "</p>";
             }
