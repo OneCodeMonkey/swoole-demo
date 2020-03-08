@@ -9,13 +9,13 @@ $http->on('request', function ($request, $response) {
         fwrite($fin, "\r\n");
         fclose($fin);
     }
-    $messageLists = '';
+    $messageLists = '<h4>---------------------------------</h4>';
     $filePath = __DIR__ . '/record.txt';
     if (file_exists($filePath)) {
         $fout = fopen($filePath, "r");
         while (!feof($fout)) {
             $line = fgets($fout);
-            $messageLists .= $line . "<br/>";
+            $messageLists .= "<p style='color: aqua';>" . $line . "</p><br/>";
         }
     }
 
