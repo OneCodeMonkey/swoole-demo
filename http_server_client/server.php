@@ -15,10 +15,10 @@ $http->on('request', function ($request, $response) {
         $fout = fopen($filePath, "r");
         while (!feof($fout)) {
             $line = fgets($fout);
-            $messageLists .= "<p style='color: red';>>>>&nbsp;&nbsp;" . $line . "</p><br/>";
+            $messageLists .= "<p style='color: darkblue';>>>>{username}:&nbsp;" . $line . "</p>";
         }
     }
 
-    $response->end("<h1>Message list:</h1><br/>" . $messageLists);
+    $response->end("<h4>Message list:</h4><br/>" . $messageLists);
 });
 $http->start();
