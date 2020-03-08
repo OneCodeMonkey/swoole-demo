@@ -4,7 +4,7 @@ $http = new Swoole\Http\Server("0.0.0.0", 9501);
 $http->on('request', function ($request, $response) {
     $params = $request->get;
     if (!empty($params)) {
-        $fin = fopen(__DIR__ . '/record.txt', "w");
+        $fin = fopen(__DIR__ . '/record.txt', "a");
         fwrite($fin, json_encode($params));
         fwrite($fin, "\r\n");
         fclose($fin);
@@ -15,7 +15,7 @@ $http->on('request', function ($request, $response) {
         $fout = fopen($filePath, "r");
         while (!feof($fout)) {
             $line = fgets($fout);
-            $messageLists .= "<p style='color: aqua';>" . $line . "</p><br/>";
+            $messageLists .= "<p style='color: red';>>>>&nbsp;&nbsp;" . $line . "</p><br/>";
         }
     }
 
