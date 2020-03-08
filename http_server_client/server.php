@@ -15,7 +15,9 @@ $http->on('request', function ($request, $response) {
         $fout = fopen($filePath, "r");
         while (!feof($fout)) {
             $line = fgets($fout);
-            $messageLists .= "<p style='color: darkblue';>>>>{username}:&nbsp;" . $line . "</p>";
+            if (!empty($line)) {
+                $messageLists .= "<p style='color: darkblue';>>>>{username}:&nbsp;" . $line . "</p>";
+            }
         }
     }
 
