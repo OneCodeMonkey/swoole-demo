@@ -21,6 +21,6 @@ $http->on('request', function ($request, $response) {
         }
     }
 
-    $response->end("<h4>Message list:</h4><br/>" . $messageLists);
+    $response->end("<h4>Message list:</h4>" . $messageLists);
 });
 $http->start();
