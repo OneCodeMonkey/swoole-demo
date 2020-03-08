@@ -2,7 +2,7 @@
 
 $http = new Swoole\Http\Server("0.0.0.0", 9501);
 $http->on('request', function ($request, $response) {
-    $params = $request['get'];
+    $params = $request->get;
     if (!empty($params)) {
         $fin = fopen(__DIR__ . '/record.txt', "w");
         fwrite($fin, json_encode($params));
